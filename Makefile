@@ -10,6 +10,7 @@
 
 # Variables
 VENV_DIR = .venv
+WORKFLOW_DIR = ai_sw_workflow
 PYTHON = $(VENV_DIR)/bin/python
 PIP = $(VENV_DIR)/bin/pip
 MODEL = 'gpt-4o'
@@ -18,7 +19,7 @@ MODEL = 'gpt-4o'
 # MODEL = "gpt-3.5-turbo"
 MAX_TOKENS = 8000
 TEMPERATURE = 0.1
-MAIN_SCRIPT = dev_gpt_main.py -m=$(MAX_TOKENS) -T=$(TEMPERATURE) --model=$(MODEL)
+MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -T=$(TEMPERATURE) --model=$(MODEL)
 
 # Define source and destination suffixes
 REQ_SUFFIX  = _req.yaml
@@ -28,16 +29,16 @@ PTEST_SUFFIX = _test.py
 DECL_SUFFIX = _decl.md
 
 # Define Rule File names
-RULE_DIR  = ./rules/
-RULE_UC   = $(RULE_DIR)rules_usecase.yaml
-RULE_PY   = $(RULE_DIR)rules_python.yaml
-RULE_PTEST= $(RULE_DIR)rules_ptest.yaml
-RULE_DECL = $(RULE_DIR)rules_decl.yaml
+RULE_DIR  = ./$(WORKFLOW_DIR)/rules
+RULE_UC   = $(RULE_DIR)/rules_usecase.yaml
+RULE_PY   = $(RULE_DIR)/rules_python.yaml
+RULE_PTEST= $(RULE_DIR)/rules_ptest.yaml
+RULE_DECL = $(RULE_DIR)/rules_decl.yaml
 
 # Find all source files in subdirectories with the specified postfixes
-EXCLUDE_SOURCES = \( -name "template_req.yaml" -o -name "exclude_this.yaml" \)
+EXCLUDE_SOURCES = \( -name "template_req.yaml" -o -name "exclude_this.yaml" -o -path "./ai_sw_workflow/*" \)
 REQ_SOURCES = $(shell find . -depth -mindepth 2 -type f -name "*$(REQ_SUFFIX)" -not $(EXCLUDE_SOURCES))
-DECL_SOURCES =$(shell find . -depth -mindepth 2 -type f -name "*$(REQ_SUFFIX)" -not $(EXCLUDE_SOURCES))
+DECL_SOURCES = $(shell find . -depth -mindepth 2 -type f -name "*$(REQ_SUFFIX)" -not $(EXCLUDE_SOURCES))
 
 # Generate corresponding destination file names
 UC_DESTINATIONS    = $(REQ_SOURCES:$(REQ_SUFFIX)=$(UC_SUFFIX))
