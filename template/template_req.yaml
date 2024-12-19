@@ -1,0 +1,51 @@
+target: "cfg_mgr"
+
+decl_disabled: False
+uc_disabled: False
+requirements: |
+  - NAME: `f()`
+    WRITE: function that will add two integers
+    PARAMETERS:
+      - name1:
+          Type: int
+          Validate: `[0,100] (exclusive)`
+          Default: 
+          Description: 
+    RETURN: |
+      - sum: as defined above
+    CONSTRAINTS: |
+      The function should be `[NAME]`
+    STEP_ACTION_TABLE:
+      - STEP_1:
+          TITLE: t
+          ACTION: subtract
+          INPUT: None
+          OUTPUT: None
+          NEXT: proceed to next step
+
+interface: none
+
+
+architecture: |
+  - High level implmentation such as: "Encapulate functionality into a single class"
+
+error_handling: |
+  - Detail error handling stratigy here
+
+impl_requirements: |
+  - List any additional implementation requirements here  
+
+test_disabled: False
+test_requirements: |
+  TEST the following Behavior-Driven Development (BDD) Scenarios
+  SCENARIO: name 
+  - OUTLINE: 
+  - GIVEN: the user is on the login page 
+  - WHEN: the user enters "<username>" and "<password>" 
+  - THEN: the message "<result>" is displayed 
+  - EXAMPLES: 
+	  - | username | password | result | 
+	  - | validUser | validPass | Login successful | 
+	  - | invalidUser | validPass | Invalid username or password |
+
+

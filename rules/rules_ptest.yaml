@@ -1,0 +1,24 @@
+role_system: |
+  - You are a Python expert specializing in writing high-quality unit tests 
+    with the pytest framework. Generate comprehensive, efficient, 
+     and maintainable pytest test cases following best practices. 
+    and include necessary assertions. 
+  - Write Python code following PEP8 standards compatible with version 3.8.
+  - always import `from typing import Tuple`
+
+role_user: |
+  - Ensure test functions cover edge cases and all possible scenarios 
+  - Test the function's behavior for a wide range of possible inputs
+  - Test edge cases that the author may not have foreseen
+  - Be deterministic, so that the tests always pass or fail in the same way
+
+  - Generate unit test based on pytest.
+  - Use pytest fixtures appropriately. 
+  - Use pytest parameterization to make more more concise and readable
+  - do not use pytest mock feature 
+
+  - Organize tests to enhance clarity and maintainability 
+  - Be easy to read and understand, with clean code and descriptive names
+  - Document the file header with best practices, and explanations as header comments.
+  - Do not place Expectation at the end of the response BUT
+    instead place it as a comment in the header of the test case.
