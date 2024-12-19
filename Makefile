@@ -74,19 +74,19 @@ count_lines:
 
 # Rule to generate _uc.md from _req.md
 %$(UC_SUFFIX): %$(REQ_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT)  --rules $(RULE_UC) --requirements $*$(REQ_SUFFIX) --usecase $@ 
+	@$(PYTHON) $(MAIN_SCRIPT)  --rules $(RULE_UC) --requirements $*$(REQ_SUFFIX) --usecase $@ 
 
 # Rule to generate .py from _uc.md
 %$(PY_SUFFIX): %$(UC_SUFFIX) %$(REQ_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT)  --rules $(RULE_PY) --requirements $*$(REQ_SUFFIX) --usecase $< --code $@
+	@$(PYTHON) $(MAIN_SCRIPT)  --rules $(RULE_PY) --requirements $*$(REQ_SUFFIX) --usecase $< --code $@
 
 # Rule to generate ptest.py from _xform.py
 %$(PTEST_SUFFIX): %$(PY_SUFFIX) %$(UC_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --rules $(RULE_PTEST) --requirements $*$(REQ_SUFFIX) --usecase $*$(UC_SUFFIX) --code $< --test $@   
+	@$(PYTHON) $(MAIN_SCRIPT) --rules $(RULE_PTEST) --requirements $*$(REQ_SUFFIX) --usecase $*$(UC_SUFFIX) --code $< --test $@   
 
 # Rule to generate _decl.md from _xform.py
 %$(DECL_SUFFIX): %$(PY_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --rules $(RULE_DECL) --requirements $*$(REQ_SUFFIX) --code $<   
+	@$(PYTHON) $(MAIN_SCRIPT) --rules $(RULE_DECL) --requirements $*$(REQ_SUFFIX) --code $<   
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +

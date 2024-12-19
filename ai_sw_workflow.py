@@ -252,7 +252,7 @@ class LlmClient:
 
             # CHECK IF MSG HAS CHANGED
             is_match = self.compare_file_to_string(prompt_fname, prompt)
-            print("\t\t GPT PROMPTS MATCH" if is_match else "\t\t PROMPT STALE - force regeneration")
+            print(f"\t\t GPT PROMPTS MATCH" if is_match else f"\t\t PROMPT STALE - force regeneration of {dest_fname}")
 
             # ONLY PROCESS IF FILE if MSGS HAVE CHANGED
             if not is_match:
