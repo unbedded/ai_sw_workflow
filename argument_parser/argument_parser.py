@@ -7,6 +7,12 @@ This module provides an ArgumentParser class to handle command-line arguments.
 
 import argparse
 from typing import Optional, Any
+from enum import Enum
+
+class XformType(Enum):
+    PSEUDO = "pseudo"
+    CODE = "code"
+    TEST = "test"
 
 class ArgumentParser:
     def __init__(self):
@@ -16,25 +22,25 @@ class ArgumentParser:
     def _setup_arguments(self) -> None:
         # One-letter argument name with default value and type
         self._parser.add_argument(
-            '-r', '--rules',
+            '-p', '--policy',
             required=True,
             type=str,
             default=" ",
             help="A path to the transformer rules file (default: None)"
         )
         self._parser.add_argument(
-            '-R', '--requirements',
-            required=False,
+            '-s', '--source',
+            required=True,
             type=str,
             default=" ",
-            help="A path to YAML w/ requirements & architecture - Used when writting code (default: None)"
+            help="A path source yaml file (required))"
         )
         self._parser.add_argument(
-            '-u', '--usecase',
-            required=False,
+            '-d', '--dest',
+            required=True,
             type=str,
             default=" ",
-            help="A path to UseCase Definition - Used when writting UnitTest & code (default: None)"
+            help="A path to target destination (required)"
         )
         self._parser.add_argument(
             '-c', '--code',
@@ -44,11 +50,10 @@ class ArgumentParser:
             help="A path to code implementation - Used when writting UnitTest (default: None)"
         )
         self._parser.add_argument(
-            '-t', '--test',
-            required=False,
-            type=str,
-            default=" ",
-            help="A path to unit test file - Used when writting UnitTest (default: None)"
+            '-x', '--xform',
+            type=self.validate_target_type, 
+            required=True, 
+            help=f"Transform type. Options: {', '.join([t.value for t in XformType])}"
         )
         self._parser.add_argument(
             '-m', '--maxtokens',
@@ -80,6 +85,12 @@ class ArgumentParser:
         if 0.0 <= float_value <= 1.0:
             return float_value
         raise argparse.ArgumentTypeError("Temperature must be between 0.0 and 1.0")
+
+    def validate_target_type(self, value: str) -> XformType:
+        try:
+            return XformType(value)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"Invalid value '{value}'. Must be one of: {', '.join([t.value for t in XformType])}.")
 
     def parse(self) -> Optional[argparse.Namespace]:
         try:

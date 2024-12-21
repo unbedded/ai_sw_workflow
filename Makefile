@@ -22,18 +22,20 @@ TEMPERATURE = 0.1
 MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -T=$(TEMPERATURE) --model=$(MODEL)
 
 # Define source and destination suffixes
-REQ_SUFFIX  = _req.yaml
-UC_SUFFIX   = _uc.md
-PY_SUFFIX   = _xform.py
-PTEST_SUFFIX = _test.py
-DECL_SUFFIX = _decl.md
+REQ_SUFFIX  	= _req.yaml
+PSEUDO_SUFFIX  	= _pseudo.yaml
+UC_SUFFIX   	= _uc.md
+PY_SUFFIX   	= _xform.py
+PTEST_SUFFIX 	= _test.py
+DECL_SUFFIX 	= _decl.md
 
 # Define Rule File names
 RULE_DIR  = ./$(WORKFLOW_DIR)/rules
-RULE_UC   = $(RULE_DIR)/rules_usecase.yaml
-RULE_PY   = $(RULE_DIR)/rules_python.yaml
-RULE_PTEST= $(RULE_DIR)/rules_ptest.yaml
-RULE_DECL = $(RULE_DIR)/rules_decl.yaml
+RULE_UC    = $(RULE_DIR)/rules_usecase.yaml
+RULE_PSEUDO= $(RULE_DIR)/rules_pseudo.yaml
+RULE_PY    = $(RULE_DIR)/rules_python.yaml
+RULE_PTEST = $(RULE_DIR)/rules_ptest.yaml
+RULE_DECL  = $(RULE_DIR)/rules_decl.yaml
 
 # Find all source files in subdirectories with the specified postfixes
 EXCLUDE_SOURCES = \( -name "template_req.yaml" -o -name "exclude_this.yaml" -o -path "./ai_sw_workflow/*" \)
@@ -74,19 +76,23 @@ count_lines:
 
 # Rule to generate _uc.md from _req.md
 %$(UC_SUFFIX): %$(REQ_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT)  --rules $(RULE_UC) --requirements $*$(REQ_SUFFIX) --usecase $@ 
+	@$(PYTHON) $(MAIN_SCRIPT)  --xform usecase --rules $(RULE_UC) --requirements $*$(REQ_SUFFIX) --usecase $@ 
+
+# Rule to generate _pseudo.yaml from _req.yaml
+%$(PSEUDO_SUFFIX): %$(REQ_SUFFIX)
+	@$(PYTHON) $(MAIN_SCRIPT)  --xform psuedo --rules $(RULE_PSEUDO) --requirements $*$(REQ_SUFFIX) --usecase $@ 
 
 # Rule to generate .py from _uc.md
 %$(PY_SUFFIX): %$(UC_SUFFIX) %$(REQ_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT)  --rules $(RULE_PY) --requirements $*$(REQ_SUFFIX) --usecase $< --code $@
+	@$(PYTHON) $(MAIN_SCRIPT)  --xform code --rules $(RULE_PY) --requirements $*$(REQ_SUFFIX) --usecase $< --code $@
 
 # Rule to generate ptest.py from _xform.py
 %$(PTEST_SUFFIX): %$(PY_SUFFIX) %$(UC_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --rules $(RULE_PTEST) --requirements $*$(REQ_SUFFIX) --usecase $*$(UC_SUFFIX) --code $< --test $@   
+	@$(PYTHON) $(MAIN_SCRIPT) --xform test --rules $(RULE_PTEST) --requirements $*$(REQ_SUFFIX) --usecase $*$(UC_SUFFIX) --code $< --test $@   
 
 # Rule to generate _decl.md from _xform.py
 %$(DECL_SUFFIX): %$(PY_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --rules $(RULE_DECL) --requirements $*$(REQ_SUFFIX) --code $<   
+	@$(PYTHON) $(MAIN_SCRIPT) --xform  decl --rules $(RULE_DECL) --requirements $*$(REQ_SUFFIX) --code $<   
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
