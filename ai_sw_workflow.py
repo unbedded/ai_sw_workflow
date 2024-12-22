@@ -39,12 +39,12 @@ from argument_parser.argument_parser import ArgumentParser, XformType
 from pathlib import Path
 from enum import Enum
 
-# def install_and_import(package):
-#     try:
-#         __import__(package)
-#     except ImportError:
-#         print(f"Installing {package}...")
-#         subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+def install_and_import(package):
+    try:
+        __import__(package)
+    except ImportError:
+        print(f"Installing {package}...")
+        subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
 class LlmClient:
     WORKFLOW_DIR = "ai_sw_workflow"
@@ -113,45 +113,50 @@ class LlmClient:
         response = re.sub(r'^python', '#', response, flags=re.MULTILINE)
         return response
 
-    def compare_file_to_string(self, file_path: str, prompt: List[dict]) -> bool:
-            """
-            Compares the content of a file to a given string, ignoring all whitespace differences.
+    def compare_file_to_string(self, dest_fname: str, prompt: List[dict]) -> bool:
+        """
+        Compares the content of a file to a given string, ignoring all whitespace differences.
 
-            :param file_path: Path to the file to compare.
-            :param input_string: The string to compare with the file content.
-            :return: True if the file content matches the string ignoring whitespace; False otherwise.
-            """
-            if not os.path.exists(file_path):
-                # print(f"File does not exist: {file_path}")
-                return False
+        :param file_path: Path to the file to compare.
+        :param input_string: The string to compare with the file content.
+        :return: True if the file content matches the string ignoring whitespace; False otherwise.
+        """
+        try:
+            prompt_fname = Path(dest_fname).with_suffix(".md")
+            prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
+            prompt_text = []
+            for item in prompt:
+                role = item["role"].capitalize()
+                content = "\n".join(line for line in item["content"].strip().splitlines() if line.strip())
+                prompt_text.append(f"### {role}\n\n{content}\n")
+            prompt_text = "\n".join(prompt_text)
 
-            try:
-                input_string = ", ".join(map(str, prompt))
-                input_string = input_string.replace("\\n", "\n")
-
-                with open(file_path, 'r', encoding=self.ENCODING) as file:
+            is_match = False
+            if os.path.exists(prompt_fname):
+                with open(prompt_fname, 'r', encoding=self.ENCODING) as file:
                     file_content = file.read()
-                
-                normalized_file_content = ''.join(file_content.split())
-                normalized_input_string = ''.join(input_string.split())
-                
+                normalized_file_content = ' '.join(file_content.split())
+                normalized_input_string = ' '.join(prompt_text.split())
                 is_match = normalized_file_content == normalized_input_string
-                if not is_match:
-                    with open(file_path, 'w', encoding=self.ENCODING) as out:
-                        out.write(", ".join(map(str, input_string)).replace("\\n", "\n"))
+            if not is_match:
+                with open(prompt_fname, 'w', encoding=self.ENCODING) as out:
+                    # out.write(", ".join(map(str, prompt_text)).replace("\\n", "\n"))
+                    out.write(prompt_text)
+            return is_match        
 
-            except Exception as e:
-                print(f"An error occurred: {e}")
-                return False
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return False
 
     def get_prefix_pairs(self, xform_type: XformType) -> List :
         key_prefix_pairs_req_2_pseudo = [
-            (self.LITTERAL, "These requirements are for a code file named: {code_fname}"),
+            ("class_name", "The code functionality shall be encapsulted in a class named:  "),
+            ("class_name", "Set template parameter <class_name> to :"),
             ("requirements", "Use the following requirements to write the pseudocode description:\n"),
             ("architecture", "Use the, following architecture for the write the pseudocode STEP_ACTION_TABLE and `architecture:` section:\n"),
         ]
         key_prefix_pairs_req_2_code = [
-            (self.LITTERAL, "Code shall be saved in a file named: {dest_fname}"),
+            (self.LITTERAL, "Add a comment to header stating code shall be saved in a file named: {dest_fname}"),
             ("requirements", "Use the following requirements to write code:\n"),
             ("architecture", "Use the following architecture to implement code:\n"),
             ("interface", "Use the following interface implementation requirements:\n"),
@@ -193,7 +198,7 @@ class LlmClient:
             if xform_type is XformType.TEST: 
                 with open(code_fname, "r", encoding=self.ENCODING) as file:
                     code = file.read()
-                prefix = "Write Unit Test for the following code:\n"    
+                prefix = f"Write Unit Test for the following code which comes from a file named: {code_fname}:\n"    
                 prompt.append({"role": "user", "content": prefix + code})
 
             # EXTRACT REQUIREMENTS - from req YAML using `key_prefix_pairs` list 
@@ -201,21 +206,22 @@ class LlmClient:
             with open(source, "r", encoding=self.ENCODING) as file:
                 arch = yaml.safe_load(file)
                 for key, prefix in key_prefix_pairs:
-                    if key in arch:
+                    if key == self.LITTERAL:
+                        content = prefix
+                        if "{source_fname}" in prefix:
+                            content = prefix.format(source_fname=source_fname)
+                        if "{dest_fname}" in prefix:
+                            content = prefix.format(dest_fname=dest_fname)
+                        if "{code_fname}" in prefix:
+                            content = prefix.format(code_fname=code_fname)
+                        prompt.append({"role": "user", "content": content})
+                    elif key in arch:
                         content = arch[key]
-                        if "{source_fname}" in content:
-                            content = content.format(source_fname=source_fname)
-                        if "{dest_fname}" in content:
-                            content = content.format(dest_fname=dest_fname)
-                        if "{code_fname}" in content:
-                            content = content.format(code_fname=code_fname)
                         prompt.append({"role": "user", "content": prefix + content})
 
             # COMPARE PREV_PROMPT w/ NEW_PROMPT
-            prompt_fname = Path(dest_fname).with_suffix(".md")
-            prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
-            is_match = self.compare_file_to_string(prompt_fname, prompt)
-            print(f"   {dest_fname} - GPT PROMPTS MATCH" if is_match else f"    {dest_fname} - PROMPT STALE - force regeneration of {dest_fname}")
+            is_match = self.compare_file_to_string(dest_fname, prompt)
+            print(f"   {dest_fname} - PROMPTS MATCH" if is_match else f"    {dest_fname} - PROMPT STALE - force regeneration")
 
             # ONLY PROCESS IF FILE if MSGS HAVE CHANGED
             if not is_match:
@@ -241,61 +247,20 @@ class LlmClient:
             raise
 
 def main():
-    # install_and_import("openai")
-    # install_and_import("yaml")
-    DEFAULT_TEMPERATURE = 0.1
-    DEFAULT_MAX_TOKENS = 4000
-    DEFAULT_MODEL = 'gpt-4o'     # Speed: 17/12/7 seconds
-    # DEFAULT_MODEL = 'gpt-3.5-turbo'  # Speed: 5/4/4 seconds
-
-    decl_fname = ""
-    result = None
-    e_msg = "\nFailed to generate response."
+    install_and_import("openai")
+    install_and_import("yaml")
     parser = ArgumentParser()
     args = parser.parse()
-    # if args is None:
-    #     print("Error: Failed to parse arguments.")
-    #     return
-
-    # Access the arguments and use them as needed
-    # print(f"Sources: {args.sources}  Destination: {args.destination} Temp: {args.temperature}, rules:{args.rules}")
-
+    if args is None:
+        print("Error: Failed to parse arguments.")
+        return
     try:
-      # client = LlmClient(temperature=args.temperature, max_tokens=args.maxtokens, model=args.model)
-        client = LlmClient(temperature=DEFAULT_TEMPERATURE, max_tokens=DEFAULT_MAX_TOKENS, model=DEFAULT_MODEL)
-
-        req_fname = "counter_req.yaml"
-        pseudo_fname = "counter_pseudo.yaml"
-        test_fname = "counter_test.py"
-        code_fname = "counter_code.py"
-
-        # 4. **High-Level to Low-Level Requirements Translation**
-        policy_fname = Path(LlmClient.WORKFLOW_DIR) / LlmClient.POLICY_DIR / "policy_pseudo.yaml"        
-        xform_type   = XformType.PSEUDO
-        source_fname = req_fname
-        dest_fname   = pseudo_fname
-        client.process(xform_type, policy_fname, source_fname, dest_fname, code_fname )
-        # client.process( xform_type, rules_fname=args.rules, source_fname=args.source,
-        #     dest_fname=args.dest, code_fname=args.code, )
-
-        # 7. **Low-Level Requirements to Code Translation**
-        policy_fname = Path(LlmClient.WORKFLOW_DIR) / LlmClient.POLICY_DIR / "policy_python3.8.yaml"        
-        xform_type = XformType.CODE
-        source_fname = pseudo_fname
-        dest_fname   = code_fname
-        client.process(xform_type, policy_fname, source_fname, dest_fname, code_fname)
-
-        # 10. **Code to Unit Test Translation**
-        policy_fname = Path(LlmClient.WORKFLOW_DIR) / LlmClient.POLICY_DIR / "policy_pytest.yaml"        
-        xform_type = XformType.TEST
-        source_fname = pseudo_fname
-        dest_fname   = test_fname
-        client.process(xform_type, policy_fname, source_fname, dest_fname, code_fname)
-
+        client = LlmClient(temperature=args.temperature, max_tokens=args.maxtokens, model=args.model)
+        client.process( xform_type=args.xform, policy_fname=args.policy, 
+            source_fname=args.source, dest_fname=args.dest, code_fname=args.code, )
     except Exception as e:
-        e_msg = f"An error occurred while processing files:\n  Input files: {policy_fname}\n  Output file: {code_fname}\n  Error details: {e}"
+        e_msg = f"An error occurred while processing files:\n  Input files: {args.policy}\n  Output file: {args.code}\n  Error details: {e}"
         print(f"ERROR THROWN {e_msg}")
 
- 
 if __name__ == "__main__":
     main()

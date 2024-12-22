@@ -1,51 +1,13 @@
-target: "cfg_mgr"
+ 
+file_basename: counter 
 
-decl_disabled: False
-uc_disabled: False
+class_name: SafeCounter
+
 requirements: |
-  - NAME: `f()`
-    WRITE: function that will add two integers
-    PARAMETERS:
-      - name1:
-          Type: int
-          Validate: `[0,100] (exclusive)`
-          Default: 
-          Description: 
-    RETURN: |
-      - sum: as defined above
-    CONSTRAINTS: |
-      The function should be `[NAME]`
-    STEP_ACTION_TABLE:
-      - STEP_1:
-          TITLE: t
-          ACTION: subtract
-          INPUT: None
-          OUTPUT: None
-          NEXT: proceed to next step
-
-interface: none
-
+  - Write requirements for methods that increment, decrement, and retrieve a counter value. 
+  - Initialize Counter to zero and value is always non-negative
 
 architecture: |
-  - High level implmentation such as: "Encapulate functionality into a single class"
-
-error_handling: |
-  - Detail error handling stratigy here
-
-impl_requirements: |
-  - List any additional implementation requirements here  
-
-test_disabled: False
-test_requirements: |
-  TEST the following Behavior-Driven Development (BDD) Scenarios
-  SCENARIO: name 
-  - OUTLINE: 
-  - GIVEN: the user is on the login page 
-  - WHEN: the user enters "<username>" and "<password>" 
-  - THEN: the message "<result>" is displayed 
-  - EXAMPLES: 
-	  - | username | password | result | 
-	  - | validUser | validPass | Login successful | 
-	  - | invalidUser | validPass | Invalid username or password |
-
-
+  - Encapsulate functionality into a thread-safe class.
+  - Minimize performance impact under high concurrency.
+  - Handle edge cases and invalid operations predictably.
