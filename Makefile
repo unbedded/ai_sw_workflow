@@ -46,10 +46,10 @@ PTEST_DESTINATIONS  = $(REQ_SOURCES:$(REQ_SUFFIX)=$(PTEST_SUFFIX))
 DESTINATIONS = $(PCODE_DESTINATIONS) $(PTEST_DESTINATIONS) $(PSEUDO_DESTINATIONS)
 .PRECIOUS: $(DESTINATIONS)
 
-# .PHONY: setup run clean help
-.PHONY:  run clean help
+# .PHONY: setup test clean help
+.PHONY:  setup template test clean help 
 
-all: $(PTEST_DESTINATIONS)  count_lines
+all: $(DESTINATIONS) count_lines
 # all: $(PTEST_DESTINATIONS) $(PSEUDO_DESTINATIONS) count_lines
 
 # Setup virtual environment if it does not already exist
@@ -70,22 +70,28 @@ count_lines:
 	total_lines=$$(($$python_lines + $$test_lines + $$yaml_lines)); \
 	echo "TOTAL LINES: $$total_lines = Code: $$python_lines + Test: $$test_lines (YAML: $$yaml_lines)"
 
-## RULES first prerequisite ($<)
-## RULES second prerequisite ($^)
-## RULES third prerequisite ($?)
-## RULES target ($@)
-
-# Rule to generate _uc.md from _req.md
+# Rule to generate _pseudo.md from _req.md
 %$(PSEUDO_SUFFIX): %$(REQ_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
+	$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
-# Rule to generate .py from _uc.md
+# Rule to generate _code.py from _pseudo.md
 %$(PCODE_SUFFIX): %$(PSEUDO_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform code   --policy $(POLICY_PY38)  --code $@
+	$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform code   --policy $(POLICY_PY38)  --code $@
 
-# Rule to generate ptest.py from _xform.py
+# Rule to generate _test.py from _code.py
 %$(PTEST_SUFFIX): %$(PCODE_SUFFIX) %$(PSEUDO_SUFFIX)
 	@$(PYTHON) $(MAIN_SCRIPT) --source $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_PTEST) --code $<    
+
+test:
+	$(PYTHON) -m pytest
+
+template:
+	@if [ "$(new_name)" = "" ]; then \
+		echo "Error: Please provide a new_name variable. Example: make template new_name=my_template"; \
+		exit 1; \
+	fi
+	cp -r ai_sw_workflow/template ./$(new_name)
+	mv ./$(new_name)/template_req.yaml ./$(new_name)/$(new_name)_req.yaml
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -99,7 +105,8 @@ help:
 	@echo ""
 	@echo "Targets:"
 	@echo "  all       - Set up the environment and run the script if needed"
-	# @echo "  setup     - Create a virtual environment and install dependencies"
-	@echo "  run       - Find source files, check for stale destinations, and update them"
+	@echo "  setup     - Create a virtual environment and install dependencies"
+	@echo "  test      - runs the pytest
 	@echo "  clean     - Remove generated files and clean the environment"
+	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_req.yaml to <new_name>.yaml"	
 	@echo "  help      - Display this help message"

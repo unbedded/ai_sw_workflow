@@ -26,3 +26,13 @@ role_user: |
     - Use the `logging` module for error and debug information.
     - Include a method to print debug statements to stdout, enabled by a `debug_enable` boolean variable (default `False`).
     - Provide debug print statements that aid in troubleshooting and understanding code behavior.
+
+key_prefix_pairs:
+  - [self.LITTERAL, "Add a comment to header stating code shall be saved in a file named: {dest_fname}"]
+  - ["class_name", "Encapsulate functionality in a class named: "]
+  - ["requirements", "Use the following requirements to write code:\n"]
+  - ["architecture", "Use the following architecture to implement code:\n"]
+  - ["error_handling", "Use the following error handling requirements:\n"]
+  - ["code_requirements", "Use these additional implementation requirements:\n"]
+  - ["test_requirements", "Use the following aditional implementation requirements :\n"]
+  - ["code_references", "Use methods from the following file to minimize generated code :\n"]

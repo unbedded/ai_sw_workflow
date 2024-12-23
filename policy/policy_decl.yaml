@@ -14,3 +14,15 @@ role_user: |
     - The module's dependencies.
     - Key usage notes or best practices.
     - Ensure the output is concise, accurate, and token-efficient to support translating requirements into code generation.
+
+architecture: |
+  - <list all archtecture requirements>
+
+error_handling: |
+  - <list detail for error handling here>
+
+impl_requirements: |
+  - <list implmentation requirements here>
+
+imports: |
+  - <list any special imports>

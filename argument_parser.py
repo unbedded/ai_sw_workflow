@@ -89,8 +89,12 @@ class ArgumentParser:
     def validate_target_type(self, value: str) -> XformType:
         try:
             return XformType(value)
-        except ValueError:
-            raise argparse.ArgumentTypeError(f"Invalid value '{value}'. Must be one of: {', '.join([t.value for t in XformType])}.")
+        except ValueError as e:
+            valid_values = [item.value for item in XformType]
+            raise argparse.ArgumentTypeError(
+                f"Invalid value '{value}' for XformType. "
+                f"Expected one of: {valid_values}. Error: {e}"
+            )
 
     def parse(self) -> Optional[argparse.Namespace]:
         try:

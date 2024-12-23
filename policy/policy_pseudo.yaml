@@ -44,3 +44,12 @@ role_user: |
     impl_requirements: |
       - <list implmentation requirements here>
   ```
+
+key_prefix_pairs:
+  - ["file_basename", "The code functionality shall be encapsulated in a class named:  "]
+  - ["class_name", "Set template parameter <class_name> to :"]
+  - ["requirements", "Use the following requirements to write the pseudocode description:\n"]
+  - ["architecture", "Use the following architecture for the pseudocode STEP_ACTION_TABLE and `architecture:` section:\n"]
+  - ["_code_requirements", "Use the following aditional implementation requirements :\n"]
+  - ["_test_requirements", "Use the following aditional test requirements  :\n"]
+  - ["_code_references", "Use methods from the following file to minimize generated code :\n"]

@@ -35,7 +35,7 @@ import time
 import re
 from typing import List, Tuple, Optional
 from datetime import datetime
-from argument_parser.argument_parser import ArgumentParser, XformType
+from argument_parser import ArgumentParser, XformType
 from pathlib import Path
 from enum import Enum
 
@@ -52,7 +52,8 @@ class LlmClient:
     ENCODING = 'utf-8'
     PROMPT_PREFIX = ".prompt_"
     LITTERAL = "LITERAL"
-
+    CODE_REF = "code_references"
+    TEST_ENABLE="test_enable"
 
     def __init__(self, temperature=0.1, max_tokens=4000, model='gpt-4o'):
         MODEL_KEY_ENV_VARIABLE = "OPENAI_API_KEY"
@@ -72,13 +73,12 @@ class LlmClient:
         """Print a period every second to indicate progress, with a counter."""
         self.running = True
         seconds = 0
-        # print("\nProgress:")
         while self.running:
             seconds += 1
             print(f"\r\t{seconds:>3} {'.' * seconds}", end="", flush=True)
             time.sleep(1)
 
-    def process_chat(self, messages: List[dict]) -> Tuple[Optional[str], Tuple[int, int, str]]:
+    def _process_chat(self, messages: List[dict]) -> Tuple[Optional[str], Tuple[int, int, str]]:
         """Process a chat and return the generated content and token usage."""
         try:
             # Start progress indicator
@@ -105,7 +105,7 @@ class LlmClient:
             print(f"\nprocess_chat() An error occurred: {e}")
             return None, (0, 0, self.model)
 
-    def extract_code_from_response(self, response: str) -> str:
+    def _extract_code_from_response(self, response: str) -> str:
         """Extract and clean code from a response string."""
         response = re.sub(r'^.*?\`\`\`', '', response, flags=re.DOTALL)
         response = re.sub(r'```.*', '', response, flags=re.DOTALL)
@@ -113,9 +113,10 @@ class LlmClient:
         response = re.sub(r'^python', '#', response, flags=re.MULTILINE)
         return response
 
-    def compare_file_to_string(self, dest_fname: str, prompt: List[dict]) -> bool:
+    def _prompt_compare_with_save(self, dest_fname: str, prompt: List[dict]) -> bool:
         """
         Compares the content of a file to a given string, ignoring all whitespace differences.
+        If `dest_fname` file does not exist - then False is returned
 
         :param file_path: Path to the file to compare.
         :param input_string: The string to compare with the file content.
@@ -132,12 +133,14 @@ class LlmClient:
             prompt_text = "\n".join(prompt_text)
 
             is_match = False
-            if os.path.exists(prompt_fname):
-                with open(prompt_fname, 'r', encoding=self.ENCODING) as file:
-                    file_content = file.read()
-                normalized_file_content = ' '.join(file_content.split())
-                normalized_input_string = ' '.join(prompt_text.split())
-                is_match = normalized_file_content == normalized_input_string
+            is_exist = os.path.exists(dest_fname) # True if file exists
+            if is_exist:
+                if os.path.exists(prompt_fname):
+                    with open(prompt_fname, 'r', encoding=self.ENCODING) as file:
+                        file_content = file.read()
+                    normalized_file_content = ' '.join(file_content.split())
+                    normalized_input_string = ' '.join(prompt_text.split())
+                    is_match = normalized_file_content == normalized_input_string
             if not is_match:
                 with open(prompt_fname, 'w', encoding=self.ENCODING) as out:
                     # out.write(", ".join(map(str, prompt_text)).replace("\\n", "\n"))
@@ -148,34 +151,6 @@ class LlmClient:
             print(f"An error occurred: {e}")
             return False
 
-    def get_prefix_pairs(self, xform_type: XformType) -> List :
-        key_prefix_pairs_req_2_pseudo = [
-            ("class_name", "The code functionality shall be encapsulted in a class named:  "),
-            ("class_name", "Set template parameter <class_name> to :"),
-            ("requirements", "Use the following requirements to write the pseudocode description:\n"),
-            ("architecture", "Use the, following architecture for the write the pseudocode STEP_ACTION_TABLE and `architecture:` section:\n"),
-        ]
-        key_prefix_pairs_req_2_code = [
-            (self.LITTERAL, "Add a comment to header stating code shall be saved in a file named: {dest_fname}"),
-            ("requirements", "Use the following requirements to write code:\n"),
-            ("architecture", "Use the following architecture to implement code:\n"),
-            ("interface", "Use the following interface implementation requirements:\n"),
-            ("error_handling", "Use the following error handling requirements:\n"),
-            ("impl_requirements", "Use these additional implementation requirements:\n")
-        ]
-        key_prefix_pairs_code_to_test = [
-            (self.LITTERAL, "Unit Test code shall be saved in a file named: {dest_fname}"),
-            (self.LITTERAL, "Target code to be tested comes from a file named: {code_fname}"),
-            ("test_requirements", "see the additional test requirements:\n")
-        ]
-        if xform_type is XformType.PSEUDO:
-            return key_prefix_pairs_req_2_pseudo
-        elif xform_type == XformType.CODE:
-            return key_prefix_pairs_req_2_code
-        elif xform_type == XformType.TEST:
-            return key_prefix_pairs_code_to_test
-        else:
-            raise ValueError(f"Invalid target: {xform_type}. Expected one of: Options: {', '.join([t.value for t in XformType])}")
 
     def process(self, xform_type: XformType, policy_fname: str, source_fname: str, 
                 dest_fname: str, code_fname: str) -> None:
@@ -183,18 +158,29 @@ class LlmClient:
         Process the input YAML files to generate a code prompt and save results to specified files.
         Parameters:
         """
-        try:
-            # EXTRACT RULES - a llm prompt must start with high level system role and user role
-            with open(policy_fname, "r", encoding=self.ENCODING) as file:
-                data = yaml.safe_load(file)
-            prompt = [
-                {"role": "system", "content": data["role_system"]},
-                {"role": "user", "content": data["role_user"]}
-            ]
+        IMPORTS = "imports"
+        source = source_fname
+        target = dest_fname
+        try:            
+            # ABORT if TEST_ENABLE is False & xform_type is TEST
+            with open(source, "r", encoding=self.ENCODING) as file:
+                rules = yaml.safe_load(file)
+                enable_test = "True" == rules.get(self.TEST_ENABLE, "False")
+                if not enable_test and xform_type is XformType.TEST:
+                    print(f"Skipping TEST generation for {source} as {self.TEST_ENABLE} is not set to True.")
+                    return  # WARNING - RETURNING EARLY
 
-            # XFORM_TYPE SPECIFIC - pre-processing
-            source = source_fname
-            target = dest_fname
+            # EXTRACT POLICY - a llm prompt must start with high level system role and user role
+            key_prefix_pairs = [("key", "prefix")]
+            with open(policy_fname, "r", encoding=self.ENCODING) as file:
+                policy = yaml.safe_load(file)
+                key_prefix_pairs = policy["key_prefix_pairs"]
+                prompt = [
+                    {"role": "system", "content": policy["role_system"]},
+                    {"role": "user", "content": policy["role_user"]}
+                ]
+
+            # PRE-PROCESSING
             if xform_type is XformType.TEST: 
                 with open(code_fname, "r", encoding=self.ENCODING) as file:
                     code = file.read()
@@ -202,11 +188,11 @@ class LlmClient:
                 prompt.append({"role": "user", "content": prefix + code})
 
             # EXTRACT REQUIREMENTS - from req YAML using `key_prefix_pairs` list 
-            key_prefix_pairs = self.get_prefix_pairs(xform_type)
             with open(source, "r", encoding=self.ENCODING) as file:
-                arch = yaml.safe_load(file)
+                rules = yaml.safe_load(file)               
                 for key, prefix in key_prefix_pairs:
                     if key == self.LITTERAL:
+                        print("TODO - use API string variable sub instead of f-strings")
                         content = prefix
                         if "{source_fname}" in prefix:
                             content = prefix.format(source_fname=source_fname)
@@ -215,28 +201,52 @@ class LlmClient:
                         if "{code_fname}" in prefix:
                             content = prefix.format(code_fname=code_fname)
                         prompt.append({"role": "user", "content": content})
-                    elif key in arch:
-                        content = arch[key]
+                    elif key == self.CODE_REF and key in rules:
+                        references_str = rules[key]
+                        references = [line.lstrip("- ").strip() for line in references_str.splitlines() if line.strip()]
+                        for ref_fname in references:
+                            module = ref_fname.split('/')[0]
+                            fname  = ref_fname.split('/')[1]
+                            cmd = (f"Use the following as instructions to understand how to use the package: {module}.\n"
+                                    f"The package's module is stored in a file named {fname} from the subdirectory {module} :\n")
+                            with open(ref_fname, 'r', encoding=self.ENCODING) as file:
+                                reference = file.read()
+                            prompt.append({"role": "user", "content": cmd + reference})
+                    elif key in rules and not key.startswith("_"):
+                        content = rules[key]
                         prompt.append({"role": "user", "content": prefix + content})
 
             # COMPARE PREV_PROMPT w/ NEW_PROMPT
-            is_match = self.compare_file_to_string(dest_fname, prompt)
+            is_match = self._prompt_compare_with_save(dest_fname, prompt)
             print(f"   {dest_fname} - PROMPTS MATCH" if is_match else f"    {dest_fname} - PROMPT STALE - force regeneration")
 
             # ONLY PROCESS IF FILE if MSGS HAVE CHANGED
             if not is_match:
-                response, tokens = self.process_chat(prompt)
+                response, tokens = self._process_chat(prompt)
                 result = f"# TOKENS: {tokens[0] + tokens[1]} (of:{self.max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return) -- MODEL: {tokens[2]}"
                 if response is None:
                     raise RuntimeError("Failed to generate response.")
 
-                # XFORM_TYPE SPECIFIC - post-processing
-                if xform_type is XformType.PSEUDO:
-                    response = re.sub(r'```yaml', '', response)
-                    response = re.sub(r'```.*$', '', response)
-                    result +=  '\n' +  response 
+                # POST-PROCESSING
+                if not xform_type is XformType.PSEUDO:
+                    result += self._extract_code_from_response(response) 
                 else:
-                    result += self.extract_code_from_response(response) 
+                    response = response.replace("```yaml", "   ")
+                    response = response.replace("```", "   ")
+                    result +=  '\n' +  response 
+
+                    # LITERAL reqirements (which are prefix w/ underscore) 
+                    # copy them directly into PSEUDO yaml file
+                    with open(source, "r", encoding=self.ENCODING) as file:
+                        rules = yaml.safe_load(file)
+                        for _key, prefix in key_prefix_pairs:
+                            key = _key[1:]
+                            if _key.startswith("_") and key in rules:
+                                content = rules[key]
+                                result += f"\n{key}: |\n"
+                                result += "\n".join([f"  {line}" for line in content.splitlines()])
+                                result += "\n"
+
                 with open(target, 'w', encoding=self.ENCODING) as out:
                     out.write(result)
 
