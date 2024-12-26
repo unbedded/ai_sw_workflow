@@ -13,7 +13,8 @@ role_user: |
     - Import and use generics from the `typing` module (e.g., `List`, `Dict`, `Tuple`) for type hinting.
 
   - Documentation:
-    - Do not place `Example usage:` at the end of the response. Instead, include inside comment in header.
+    - Insert `Example usage:` as comment in header.
+    - Do not `Example usage:` as a comment at end of file.
     - Document the file header with best practices, including today's date.
     - Include explanations: inside a commont in header documentation.
 
@@ -28,11 +29,13 @@ role_user: |
     - Provide debug print statements that aid in troubleshooting and understanding code behavior.
 
 key_prefix_pairs:
-  - [self.LITTERAL, "Add a comment to header stating code shall be saved in a file named: {dest_fname}"]
-  - ["class_name", "Encapsulate functionality in a class named: "]
-  - ["requirements", "Use the following requirements to write code:\n"]
-  - ["architecture", "Use the following architecture to implement code:\n"]
-  - ["error_handling", "Use the following error handling requirements:\n"]
-  - ["code_requirements", "Use these additional implementation requirements:\n"]
-  - ["test_requirements", "Use the following aditional implementation requirements :\n"]
-  - ["code_references", "Use methods from the following file to minimize generated code :\n"]
+  - [LITTERAL, "Add a comment to header stating code shall be saved in a file named: [CODE_FNAME]"]
+  - ["requirements", "Use the following requirements to write code:"]
+  - ["architecture", "Use the following architecture to implement code:"]
+  - ["code_requirements", "Use these additional implementation requirements:"]
+  - ["code_references", "The following files will be copied into prompt :"]
+
+  # - ["error_handling", "Use the following error handling requirements:"]
+  # - ["target_name", "Encapsulate functionality in a class named: "]
+
+

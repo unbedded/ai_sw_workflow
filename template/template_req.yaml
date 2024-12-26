@@ -2,7 +2,7 @@
 
 file_basename: <basename>
 
-class_name: <classname>
+target_name: <classname>
 
 requirements: |
   - <req1>

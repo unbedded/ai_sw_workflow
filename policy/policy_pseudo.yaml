@@ -9,11 +9,11 @@ role_user: |
   - Make sure exception handling is detailed in the `Step Action Table`.
   - Only list in the `error_handling:` section items not covered in the `Step Action Table`
   - Ignore any assumptions from previous prompts
-  - Output requirements in a YAML format using the following YAML TEMPLATE.
+  - Output requirements in a YAML format using the following YAML_TEMPLATE.
 
-  TEMPLATE:
+  YAML_TEMPLATE:
   ```
-    class_name: <class_name>
+    target_name: [TARGET_NAME]
     requirements: |
       - NAME: <fucntion_name()>
         BRIEF: <outline description>
@@ -46,10 +46,12 @@ role_user: |
   ```
 
 key_prefix_pairs:
-  - ["file_basename", "The code functionality shall be encapsulated in a class named:  "]
-  - ["class_name", "Set template parameter <class_name> to :"]
-  - ["requirements", "Use the following requirements to write the pseudocode description:\n"]
-  - ["architecture", "Use the following architecture for the pseudocode STEP_ACTION_TABLE and `architecture:` section:\n"]
-  - ["_code_requirements", "Use the following aditional implementation requirements :\n"]
-  - ["_test_requirements", "Use the following aditional test requirements  :\n"]
-  - ["_code_references", "Use methods from the following file to minimize generated code :\n"]
+  - ["requirements", "Use the following requirements to write the pseudocode description:"]
+  - ["architecture", "Use the following architecture for the pseudocode STEP_ACTION_TABLE and `architecture:` section:"]
+  - ["_file_basename", "The code functionality shall be encapsulated in a file basename: [BASE_FNAME]"]
+  - ["_target_name", "Direct copy this yaml into target yaml:"]
+  - ["_requirements", "Direct copy this yaml into target yaml:"]
+  - ["_code_requirements", "Direct copy this yaml into target yaml:"]
+  - ["_test_enable", "Is test required? :"]
+  - ["_test_requirements", "Direct copy this yaml into target yaml:"]
+  - ["_code_references", "Direct copy this yaml into target yaml: "]
