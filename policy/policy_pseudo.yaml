@@ -48,7 +48,6 @@ role_user: |
 key_prefix_pairs:
   - ["requirements", "Use the following requirements to write the pseudocode description:"]
   - ["architecture", "Use the following architecture for the pseudocode STEP_ACTION_TABLE and `architecture:` section:"]
-  - ["_file_basename", "The code functionality shall be encapsulated in a file basename: [BASE_FNAME]"]
   - ["_target_name", "Direct copy this yaml into target yaml:"]
   - ["_requirements", "Direct copy this yaml into target yaml:"]
   - ["_code_requirements", "Direct copy this yaml into target yaml:"]

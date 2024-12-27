@@ -35,7 +35,14 @@ from enum import Enum
 from typing import List, Dict
 
 ENCODING = 'utf-8'
-
+TEMPLFLOWDIAG = """
+┌─────────────┐       ┌─────────────┐       ┌─────────────┐       ┌────────┐
+│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
+└─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
+            ╔═ #1 ╚═══════╗       ┌─────┼───────┐       ┌─────┼───────┐          
+            ║PSEUDO C TMPL║       │ 6.CodePolicy│       │ 9.TestPolicy│          
+            ╚═════════════╝       └─────────────┘       └─────────────┘
+"""
 
 def install_and_import(package):
     try:
@@ -61,24 +68,33 @@ def strip_comments_python(source_code: str) -> str:
 class PromptManager:
     PROMPT_PREFIX = ".prompt_"
     def __init__(self):
-        self.prompt: List[Dict[str, str]] = []
+        self.clear()
+
+    def clear(self) -> None:
+        """
+        Clears the list of messages.
+        """
+        self.system: Dict[str, str] = {}
+        self.user_list: List[Dict[str, str]] = []
+        self.variable_list = []
+
     def add_variable(self, variable_name: str, variable_value: str) -> None:
         """
         Creates the first message in the list with the given content.
         Args:
             system_role (str): The GPT role .
         """
-        if len(variable_value) > 0:
-            content = f"Let {variable_name} = \"{variable_value}\" and Perform substitution when variable name is in square brackets.\n"
-            self.prompt.append({"role": "user", "content": content})
+        if variable_value and len(variable_value) > 0:
+            var = (variable_name, variable_value)
+            self.variable_list.append(var)
                        
-    def create_prompt(self, system_role: str) -> None:
+    def system_prompt(self, system_role: str) -> None:
         """
         Creates the first message in the list with the given content.
         Args:
             system_role (str): The GPT role .
         """
-        self.prompt = [{"role": "system", "content": system_role},]
+        self.system = {"role": "system", "content": system_role}
 
     def append_prompt(self, content: str) -> None:
         """
@@ -86,7 +102,7 @@ class PromptManager:
         Args:
             content (str): The content for the user message.
         """
-        self.prompt.append({"role": "user", "content": content})
+        self.user_list.append({"role": "user", "content": content})
 
     def get_prompt(self) -> List[Dict[str, str]]:
         """
@@ -94,9 +110,18 @@ class PromptManager:
         Returns:
             List[Dict[str, str]]: The current list of messages.
         """
-        return self.prompt
+        if self.system == {}:
+            raise ValueError("System role is not set in class PromptManager().") 
+        prompt: List[Dict[str, str]] = [self.system]
+        if len(self.variable_list) > 0:
+            content = f"Perform substitution when the following variable names apear square brackets.\n"
+            for variable_name, variable_value in self.variable_list:
+                content += f"  - {variable_name} = \"{variable_value}\".\n"
+            prompt.append({"role": "user", "content": content})
+        prompt += self.user_list
+        return prompt
     
-    def _prompt_compare_with_save(self, target: str, prompt: List[dict]) -> bool:
+    def prompt_compare_with_save(self, target: str) -> bool:
         """
         Compares the content of a file to a given string, ignoring all whitespace differences.
         If `dest_fname` file does not exist - then False is returned
@@ -106,9 +131,10 @@ class PromptManager:
         :return: True if the file content matches the string ignoring whitespace; False otherwise.
         """
         try:
+            prompt: List[Dict[str, str]] = self.get_prompt()
             prompt_fname = Path(target).with_suffix(".md")
             prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
-            prompt_text = []
+            prompt_text = ["````\n"+ TEMPLFLOWDIAG + "````\n"]
             for item in prompt:
                 role = item["role"].capitalize()
                 content = "\n".join(line for line in item["content"].strip().splitlines() if line.strip())
@@ -126,7 +152,6 @@ class PromptManager:
                     is_match = normalized_file_content == normalized_input_string
             if not is_match:
                 with open(prompt_fname, 'w', encoding=ENCODING) as out:
-                    # out.write(", ".join(map(str, prompt_text)).replace("\\n", "\n"))
                     out.write(prompt_text)
             return is_match        
 
@@ -157,7 +182,7 @@ class LlmManager:
         seconds = 0
         while self.running:
             seconds += 1
-            print(f"\r\t{seconds:>3} {'.' * seconds}", end="", flush=True)
+            print(f"\r{seconds:>3} {'.' * seconds}", end="", flush=True)
             time.sleep(1)
 
     def process_chat(self, prompt) -> Tuple[Optional[str], Tuple[int, int, str]]:
@@ -177,7 +202,7 @@ class LlmManager:
                 self.running = False
                 if self._progress_thread:
                     self._progress_thread.join()
-            print("")  # Clear progress indicator
+            # print("")  # Clear progress indicator
             usage = getattr(response, 'usage', None)
             if usage:
                 return response.choices[0].message.content, (usage.prompt_tokens, usage.completion_tokens, self.model)
@@ -215,7 +240,7 @@ class LlmClient:
             with open(policy_fname, "r", encoding=ENCODING) as file:
                 policy = yaml.safe_load(file)
                 key_prefix_pairs = policy[self.POLICY_PAIRS]
-                prompt.create_prompt(policy["role_system"])
+                prompt.system_prompt(policy["role_system"])
                 prompt.append_prompt(policy["role_user"])
             prompt.add_variable("SOURCE_FNAME", source_fname)
             prompt.add_variable("TARGET_FNAME", dest_fname)
@@ -252,7 +277,7 @@ class LlmClient:
                     if code_fname.endswith(".py"):
                         code = strip_comments_python(code)
                 prefix = f"Write Unit Test for the following code which comes from a file named: {code_fname}:\n"    
-                prompt.append_prompt(prefix + code)
+                prompt.append_prompt(prefix + "\n\n\n```" + code + "\n\n\n```")
 
         except Exception as e:
             error_type = type(e).__name__
@@ -303,18 +328,16 @@ class LlmClient:
 def main():
     install_and_import("openai")
     install_and_import("yaml")
-    print("\t\t\t TODO - how to deal with BASE NAME and TARGET NAME")
-    print("\t\t\t TODO - INSERT Variables in top of YAML???")
-    print("\t\t\t TODO - Better progress msgs")
-    print("\t\t\t TODO - How to force test regeneration if test req change")
-
+    # TODO - how to deal with BASE NAME and TARGET NAME
+    # TODO - makefile to process subdirectories first before base directory
     try:
-        prompt = PromptManager()
+        # ARGUMENT PARSING
         parser = ArgumentParser()
         args = parser.parse()
         if args is None:
             print("Error: Failed to parse arguments.")
-            return
+            return # KLUDGE - mid function abort
+        
         # IS XFORM REQUIRED
         is_xform_enabled = True
         TEST_ENABLE="test_enable"
@@ -324,16 +347,23 @@ def main():
                 is_xform_enabled = "true" in str(rules.get(TEST_ENABLE, "true")).lower()
                 if not is_xform_enabled:
                     print(f"Skipping TEST generation for {args.source} as {TEST_ENABLE} is not set to True.")
-                    return
+                    return # KLUDGE - mid function abort
 
+        prompt = PromptManager()
         client = LlmClient()
         client.create_prompt( prompt, xform_type=args.xform, policy_fname=args.policy, 
             source_fname=args.source, dest_fname=args.dest, code_fname=args.code, )
+        if prompt.prompt_compare_with_save(args.dest):
+            print(f"\t\t {args.dest} - Skipping generation, prompts match.")
+            return  # KLUDGE - mid function abort
+        
         llm_mgr = LlmManager(temperature=args.temperature, max_tokens=args.maxtokens, model=args.model)
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
         response = client.post_process( response, xform_type=args.xform, policy_fname=args.policy, 
             source_fname=args.source, dest_fname=args.dest, code_fname=args.code, )
         token_usage = f"# TOKENS: {tokens[0] + tokens[1]} (of:{args.maxtokens}) = {tokens[0]} + {tokens[1]}(prompt+return) -- MODEL: {tokens[2]}"
+        token_usage2 = f"TOKENS: {tokens[0] + tokens[1]} (of:{args.maxtokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
+        print(f"{args.dest} - {token_usage2}")
         result = f"{token_usage}\n{response}"
         with open(args.dest, 'w', encoding=ENCODING) as out:
             out.write(result)

@@ -79,7 +79,7 @@ count_lines:
 	@$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform code   --policy $(POLICY_PY38)  --code $@
 
 # Rule to generate _test.py from _code.py
-%$(PTEST_SUFFIX): %$(PCODE_SUFFIX) %$(PSEUDO_SUFFIX)
+%$(PTEST_SUFFIX): %$(PCODE_SUFFIX) %$(REQ_SUFFIX)
 	@$(PYTHON) $(MAIN_SCRIPT) --source $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_PTEST) --code $<    
 
 test:

@@ -1,14 +1,14 @@
 # Comment out any fields that are not needed 
 
-file_basename: <basename>
-
 target_name: <classname>
 
 requirements: |
   - <req1>
   - <req2>
 
-architecture: |
+architecture: 
+  # - Package code into a function named [TARGET_NAME]
+  # - Package code into a class named [TARGET_NAME]
   - <arch1>
   - <arch2>
 
