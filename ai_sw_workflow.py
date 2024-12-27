@@ -35,13 +35,29 @@ from enum import Enum
 from typing import List, Dict
 
 ENCODING = 'utf-8'
-TEMPLFLOWDIAG = """
-┌─────────────┐       ┌─────────────┐       ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
-└─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
-            ╔═ #1 ╚═══════╗       ┌─────┼───────┐       ┌─────┼───────┐          
-            ║PSEUDO C TMPL║       │ 6.CodePolicy│       │ 9.TestPolicy│          
-            ╚═════════════╝       └─────────────┘       └─────────────┘
+FLOWDIAG_PSEUDO = """
+┌─────────────┐ ╔═══╗ ┌─────────────┐       ┌─────────────┐       ┌────────┐
+│ 2.HiLvlRqmt ┼──►#4─►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
+└─────────────┘ ╚═▲═╝ └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
+            ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
+            │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
+            └─────────────┘       └─────────────┘       └─────────────┘          
+"""
+FLOWDIAG_CODE = """
+┌─────────────┐       ┌─────────────┐ ╔═══╗ ┌─────────────┐       ┌────────┐
+│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼──►#7─►│   8.Code    ┼─►#10─►│11.uTest│
+└─────────────┘   ▲   └─────────────┘ ╚═▲═╝ └─────────────┘   ▲   └────────┘
+            ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
+            │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
+            └─────────────┘       └─────────────┘       └─────────────┘          
+"""
+FLOWDIAG_TEST = """
+┌─────────────┐       ┌─────────────┐       ┌─────────────┐ ╔═══╗ ┌─────────┐
+│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTests│
+└─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘ ╚═▲═╝ └─────────┘
+            ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
+            │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
+            └─────────────┘       └─────────────┘       └─────────────┘          
 """
 
 def install_and_import(package):
@@ -121,7 +137,7 @@ class PromptManager:
         prompt += self.user_list
         return prompt
     
-    def prompt_compare_with_save(self, target: str) -> bool:
+    def prompt_compare_with_save(self, xform_type: XformType, target: str) -> bool:
         """
         Compares the content of a file to a given string, ignoring all whitespace differences.
         If `dest_fname` file does not exist - then False is returned
@@ -134,7 +150,17 @@ class PromptManager:
             prompt: List[Dict[str, str]] = self.get_prompt()
             prompt_fname = Path(target).with_suffix(".md")
             prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
-            prompt_text = ["````\n"+ TEMPLFLOWDIAG + "````\n"]
+            if xform_type is XformType.TEST:
+                title = "Translation CODE -> TEST"
+                diagram = FLOWDIAG_TEST
+            elif xform_type is XformType.PSEUDO:
+                title = "Translation HIGH_LVL_REQ -> PSEUDO"
+                diagram = FLOWDIAG_PSEUDO
+            else:
+                title = "Translation PSEUDO -> CODE"
+                diagram = FLOWDIAG_CODE
+            prompt_text  = [f"# {title}\n\n"]
+            prompt_text += ["````\n"+ diagram + "````\n"]
             for item in prompt:
                 role = item["role"].capitalize()
                 content = "\n".join(line for line in item["content"].strip().splitlines() if line.strip())
@@ -229,11 +255,18 @@ class LlmClient:
         response = re.sub(r'^python', '#', response, flags=re.MULTILINE)
         return response
 
-    def create_prompt(self, prompt: PromptManager, xform_type: XformType, policy_fname: str, source_fname: str, 
-                dest_fname: str, code_fname: str) -> None:
+    def create_prompt(self, prompt: PromptManager, xform_type: XformType, 
+                      policy_fname: str, source_fname: str, code_fname: str) -> None:
         """
-        Process the input YAML files to generate a code prompt and save results to specified files.
-        Parameters:
+        Generates a code prompt by processing input YAML files and saves the results to specified files.
+        Args:
+            prompt (PromptManager): The prompt manager to handle prompt creation.
+            xform_type (XformType): The type of transformation to apply.
+            policy_fname (str): The filename of the policy YAML file.
+            source_fname (str): The filename of the source YAML file.
+            code_fname (str): The filename of the code file to be included in the prompt.
+        Raises:
+            Exception: If an error occurs during file processing.
         """
         try:
             # EXTRACT POLICY - a llm prompt must start with high level system role and user role
@@ -242,19 +275,15 @@ class LlmClient:
                 key_prefix_pairs = policy[self.POLICY_PAIRS]
                 prompt.system_prompt(policy["role_system"])
                 prompt.append_prompt(policy["role_user"])
-            prompt.add_variable("SOURCE_FNAME", source_fname)
-            prompt.add_variable("TARGET_FNAME", dest_fname)
-            prompt.add_variable("CODE_FNAME", code_fname)
         
             # EXTRACT REQUIREMENTS - from req YAML using `key_prefix_pairs` list 
             with open(source_fname, "r", encoding=ENCODING) as file:
                 rules = yaml.safe_load(file)               
-                prompt.add_variable("BASE_FNAME", rules.get("base_fname", ""))
                 prompt.add_variable("TARGET_NAME", rules.get("target_name", ""))
                 for key, prefix in key_prefix_pairs:
                     if key == self.LITTERAL:
                         prompt.append_prompt(prefix)
-                    elif key == self.CODE_REF and key in rules : #and xform_type is XformType.TEST:
+                    elif key == self.CODE_REF and key in rules:
                         references_str = rules[key]
                         references = [line.lstrip("- ").strip() for line in references_str.splitlines() if line.strip()]
                         for ref_fname in references:
@@ -282,22 +311,33 @@ class LlmClient:
         except Exception as e:
             error_type = type(e).__name__
             print(f"An error occurred while processing files:\n  Input files: {policy_fname}, {source_fname}\n")
-            print(f"  Output file: {dest_fname}\n  Error type: {error_type}\n  Error details: {e}")
+            print(f"  Output file: {code_fname}\n  Error type: {error_type}\n  Error details: {e}")
             raise
 
-    def post_process(self, response: str, xform_type: XformType, policy_fname: str, source_fname: str, 
-                dest_fname: str, code_fname: str) -> str:
+    def post_process(self, response: str, xform_type: XformType, policy_fname: str, source_fname: str) -> str:
+        """
+        Post-process the response based on the transformation type.
+        Args:
+            response (str): The response to be processed.
+            xform_type (XformType): The type of transformation to be applied.
+            policy_fname (str): The name of the policy file.
+            source_fname (str): The name of the source file.
+        Returns:
+            str: The processed result.
+        Raises:
+            Exception: If an error occurs during file processing - or if response is empty.
+        """        
         try:
             result = ""
             if not xform_type is XformType.PSEUDO:
-                result += self._extract_code_from_response(response) 
+                result += self._extract_code_from_response(response)
             else:
                 # XformType.PSEUDO - remove code blocks from response
                 response = response.replace("```yaml", "   ")
                 response = response.replace("```", "   ")
                 result +=  '\n' +  response
 
-                # LITERAL reqirements (which are prefix w/ underscore) 
+                # LITERAL requirements (which are prefixed with underscore) 
                 # copy them directly into PSEUDO yaml file
                 with open(policy_fname, "r", encoding=ENCODING) as file:
                     policy = yaml.safe_load(file)
@@ -312,7 +352,6 @@ class LlmClient:
                                 result += f"\n{key}: {content}"
                             else:
                                 result += f"\n{key}: |\n"
-                                # result += "  - " + prefix + "\n  "
                                 result += "\n".join([f"  {line}" for line in content.splitlines()])
                                 result += "\n"
             if len(result) == 0:
@@ -322,14 +361,20 @@ class LlmClient:
         except Exception as e:
             error_type = type(e).__name__
             print(f"An error occurred while processing files:\n  Input files: {policy_fname}, {source_fname}\n")
-            print(f"  Output file: {dest_fname}\n  Error type: {error_type}\n  Error details: {e}")
+            print(f"  Error type: {error_type}\n  Error details: {e}")
             raise
 
 def main():
     install_and_import("openai")
     install_and_import("yaml")
-    # TODO - how to deal with BASE NAME and TARGET NAME
     # TODO - makefile to process subdirectories first before base directory
+    # TODO - make markdown flowchart w/ TITLE
+    # TODO - reduce the number of arguments
+    # TODO - pytest coverage  w/ summary report 
+    # TODO - pytest summary md
+    # TODO - pytest autorun
+    # TODO - Date is wrong Date: 2023-10-05
+
     try:
         # ARGUMENT PARSING
         parser = ArgumentParser()
@@ -351,16 +396,18 @@ def main():
 
         prompt = PromptManager()
         client = LlmClient()
+        prompt.add_variable("SOURCE_FNAME", args.source)
+        prompt.add_variable("TARGET_FNAME", args.dest)
+        prompt.add_variable("CODE_FNAME", args.code)
         client.create_prompt( prompt, xform_type=args.xform, policy_fname=args.policy, 
-            source_fname=args.source, dest_fname=args.dest, code_fname=args.code, )
-        if prompt.prompt_compare_with_save(args.dest):
+            source_fname=args.source, code_fname=args.code, )
+        if prompt.prompt_compare_with_save(xform_type=args.xform, target=args.dest):
             print(f"\t\t {args.dest} - Skipping generation, prompts match.")
             return  # KLUDGE - mid function abort
         
         llm_mgr = LlmManager(temperature=args.temperature, max_tokens=args.maxtokens, model=args.model)
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
-        response = client.post_process( response, xform_type=args.xform, policy_fname=args.policy, 
-            source_fname=args.source, dest_fname=args.dest, code_fname=args.code, )
+        response = client.post_process( response, xform_type=args.xform, policy_fname=args.policy, source_fname=args.source, )
         token_usage = f"# TOKENS: {tokens[0] + tokens[1]} (of:{args.maxtokens}) = {tokens[0]} + {tokens[1]}(prompt+return) -- MODEL: {tokens[2]}"
         token_usage2 = f"TOKENS: {tokens[0] + tokens[1]} (of:{args.maxtokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
         print(f"{args.dest} - {token_usage2}")

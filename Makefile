@@ -49,7 +49,7 @@ DESTINATIONS = $(PCODE_DESTINATIONS) $(PTEST_DESTINATIONS) $(PSEUDO_DESTINATIONS
 # .PHONY: setup test clean help
 .PHONY:  setup template test clean help count_lines 
 
-all: $(DESTINATIONS) count_lines
+all: $(DESTINATIONS) test count_lines
 # all: $(PTEST_DESTINATIONS) $(PSEUDO_DESTINATIONS) count_lines
 
 # Setup virtual environment if it does not already exist
@@ -83,7 +83,7 @@ count_lines:
 	@$(PYTHON) $(MAIN_SCRIPT) --source $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_PTEST) --code $<    
 
 test:
-	$(PYTHON) -m pytest
+	@$(PYTHON) -m pytest --tb=line | grep -vE "^(platform|rootdir|plugins|collected)"
 
 template:
 	@if [ "$(new_name)" = "" ]; then \

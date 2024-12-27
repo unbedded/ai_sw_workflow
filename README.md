@@ -1,13 +1,23 @@
-# ai_sw_workflow
+# End-to-End AI-Assisted Software Development Workflow
+
+![Image Description](./mbse_v_diag.png)
+<div style="text-align: center;">
+<p>Author: Spencer Barrett</p>
+<p>Inspired: By the power of NLP & GPT after taking Laurence Moroney - Intro to Generative AI for SW Dev</p>
+<p>Date: December 15, 2024</p>
+</div>
+
 
 ### Abstract
 Current AI-assisted coding tools primarily focus on isolated tasks within the software development lifecycle, such as writing, testing, and reviewing code. This fragmented approach limits their effectiveness and fails to provide a comprehensive solution that integrates all stages of development.
 This paper introduces an end-to-end AI-assisted software development workflow that automates the entire process—from high-level requirements to detailed design, code generation, and automated unit testing. The proposed workflow ensures well-documented artifacts at every stage while allowing for user intervention when necessary. This approach addresses the limitations of current AI coding assistants, which often operate only at isolated stages of software development.
 
-### Overview
-AI solutions must address the *Complexity vs Efficacy* trade-off. Complex tasks must breakdown code in to hierarchical simpler tasks handled by multiple agents. Leveraging large language models (LLMs) effectively requires decomposing problems into structured stages, a concept embraced by agentic orchestration tools like CrewAI and LangChain.
+The diagram above leverages the Model-Based Systems Engineering (MBSE) V-Diagram and shows the necessary artifacts to support the full-cycle workflow proposed by this paper.
 
-**Pseudocode Intermediate** - While the primary focus of this paper is on software development, the same workflow can be applied to a variety of other domains. The workflow leverages AI large language models (LLMs) to transform high-level task descriptions into detailed leveraging a pseudo-language intermediate description. Using AI to transforming your problem into a LLM friendly pseudo language is a powerful tool. This intermediate step allows developers to manually review pipeline artifacts and exercise control over the process at an intermediate pseudo-language level.
+### Overview
+AI solutions must address the *Complexity vs Efficacy* trade-off. The more complex a task the more guessing AI performs, unless you are leveraging a well know pattern. Succesful AI solutions for complex tasks must breakdown problem in to hierarchical simpler tasks handled by multiple agents. Decomposing problems into structured stages is a concept embraced by agentic orchestration tools like CrewAI and LangChain.
+
+**Pseudocode Intermediate** - While the primary focus of this paper is on software development, the same workflow can be applied to a variety of other domains. The workflow leverages AI large language models (LLMs) to transform high-level task descriptions into a detailed pseudo-language intermediate description. Using AI to transforming your problem into a LLM friendly pseudo language is a powerful tool. This intermediate step allows developers to manually review pipeline artifacts and exercise control over the process at an intermediate pseudo-language level what leveraging AI to peform the heavy lifting to bootstrap the pseudo langage detailed descriptions.
 
 **Large Language Models Challanges** (LLMs) are pattern inference machines trained on vast datasets. While they can generate plausible solutions, their effectiveness is influenced by how clearly requirements are presented, LLM model and complexity of problem. These challenges emphasize the need for well-structured prompts, version control, and diligent review to maximize the benefits of AI-assisted coding.Common challenges include:
 

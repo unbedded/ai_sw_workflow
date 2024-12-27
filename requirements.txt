@@ -1,3 +1,5 @@
 openai
 pytest
 pyyaml
+pytest-xdist
+
