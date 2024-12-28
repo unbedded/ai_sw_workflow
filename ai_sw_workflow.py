@@ -381,12 +381,13 @@ def main():
     install_and_import("openai")
     install_and_import("yaml")
     # TODO - makefile to process subdirectories first before base directory
-    # TODO - make markdown flowchart w/ TITLE
-    # TODO - reduce the number of arguments
     # TODO - pytest coverage  w/ summary report 
-    # TODO - pytest summary md
     # TODO - pytest autorun
     # TODO - Date is wrong Date: 2023-10-05
+
+
+    # TODO - make markdown flowchart w/ TITLE
+    # TODO - reduce the number of arguments
 
     try:
         # ARGUMENT PARSING
