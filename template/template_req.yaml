@@ -6,7 +6,7 @@ requirements: |
   - <req1>
   - <req2>
 
-architecture: 
+architecture: |
   # - Package code into a function named [TARGET_NAME]
   # - Package code into a class named [TARGET_NAME]
   - <arch1>
