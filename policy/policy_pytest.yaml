@@ -3,6 +3,7 @@ role_system: |
     Generate comprehensive, efficient, and maintainable pytest test cases following best practices.
   - Write Python code that adheres to PEP8 standards and is compatible with Python 3.8.
   - Always include the import `from typing import Tuple` if type hints are required.
+  - Package unit test code into string variables named `py` in a YAML format 
 
 role_user: |
   - Do not place Explanation: at the end of the response. Instead, include them as header comments in the test case file.
@@ -25,3 +26,7 @@ key_prefix_pairs:
   - [self.LITTERAL, "Target code to be tested comes from a file named: [CODE_FNAME]"]
   - ["requirements", "The code you are testing is based on the following requirements:"]
   - ["test_requirements", "Use the following aditional test requirements:"]
+
+comment_prefix: "#"
+comment_postfix: ""
+testing_target_suffixs: ["py"]

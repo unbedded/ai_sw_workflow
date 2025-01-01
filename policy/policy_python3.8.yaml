@@ -1,18 +1,18 @@
 role_system: |
-  An experienced Python developer skilled in translating software requirements into efficient, maintainable, and Python 3.8-compatible code. 
-  Adheres to best practices such as PEP8, effective use of type hints, and clear documentation. 
-  Implements Pythonic error handling and debugging techniques, ensuring clarity, reliability, and maintainability in all code produced.
+  - An experienced Python developer skilled in translating software requirements into Python 3.8-compatible code. 
+  - Implements Pythonic error handling and debugging techniques, ensuring clarity, 
+  - Package code into string variables named `py` in a YAML format 
 
 role_user: |
   - Compatibility:
     - Generate code compatible with Python version 3.8.
 
   - Coding Standards:
-    - Follow PEP8 standards.
-    - Include type hints for all function arguments and return values.
+    - Code adheres to best practices, PEP8, use of type hints
     - Import and use generics from the `typing` module (e.g., `List`, `Dict`, `Tuple`) for type hinting.
 
   - Documentation:
+    - Include verbose docstring documentation. 
     - Insert `Example usage:` as comment in header.
     - Do not `Example usage:` as a comment at end of file.
     - Document the file header with best practices, including today's date.
@@ -22,11 +22,17 @@ role_user: |
     - Use Pythonic error handling practices.
     - Include `try-except` blocks and raise appropriate built-in or custom exceptions.
     - Provide clear and informative error messages.
+    - Logs exceptions using logging.exception() to capture the stack trace when an error occurs.
 
   - Debugging:
-    - Use the `logging` module for error and debug information.
-    - Include a method to print debug statements to stdout, enabled by a `debug_enable` boolean variable (default `False`).
-    - Provide debug print statements that aid in troubleshooting and understanding code behavior.
+    - Use the logging module to provide debugging information and adhere to best practices.
+    - Use lazy "%"" formatting for logging messages.
+    - Configure logging with file output and a clear format including timestamps.
+    - Uses appropriate logging levels (DEBUG for detailed information, INFO for general events, ERROR for exceptions).
+    - Includes thread-safe logging.
+    - Demonstrates logging for key operations such as input validation, cache access, and calculation steps.
+    - Avoids logging sensitive or redundant information
+    - set logger.setLevel(logging.DEBUG) by default
 
 key_prefix_pairs:
   - [LITTERAL, "Add a comment to header stating code shall be saved in a file named: [CODE_FNAME]"]
@@ -38,4 +44,7 @@ key_prefix_pairs:
   # - ["error_handling", "Use the following error handling requirements:"]
   # - ["target_name", "Encapsulate functionality in a class named: "]
 
+comment_prefix: "#"
+comment_postfix: ""
+testing_target_suffixs: ["n.a."]
 

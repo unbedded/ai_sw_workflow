@@ -21,52 +21,71 @@ MAX_TOKENS = 8000
 TEMPERATURE = 0.1
 MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -T=$(TEMPERATURE) --model=$(MODEL)
 
+# Compiler and flags
+CXX = g++
+CXXFLAGS = -std=c++2a -I/usr/include/gtest -pthread
+
 # Define source and destination suffixes
 REQ_SUFFIX  = _req.yaml
 PSEUDO_SUFFIX  = _pseudo.yaml
-PCODE_SUFFIX   = _code.py
-PTEST_SUFFIX   = _test.py
-
-# Define Rule File names
 POLICY_DIR  = ./$(WORKFLOW_DIR)/policy
 POLICY_PSEUDO=$(POLICY_DIR)/policy_pseudo.yaml
-POLICY_PY38 = $(POLICY_DIR)/policy_python3.8.yaml
-POLICY_PTEST= $(POLICY_DIR)/policy_pytest.yaml
+
+# Conditional variable to switch policies
+POLICY_MODE = c++20
+# POLICY_MODE = python3.8
+
+ifeq ($(POLICY_MODE), python3.8)
+CODE_SUFFIX   = _code.py
+TEST_SUFFIX   = _test.py
+POLICY_CODE = $(POLICY_DIR)/policy_python3.8.yaml
+POLICY_TEST= $(POLICY_DIR)/policy_pytest.yaml
+else ifeq ($(POLICY_MODE), c++20)
+CODE_SUFFIX   = _code.cpp
+TEST_SUFFIX   = _test.cpp
+POLICY_CODE = $(POLICY_DIR)/policy_c++20.yaml
+POLICY_TEST= $(POLICY_DIR)/policy_gtest.yaml
+endif
 
 # Find all source files in subdirectories with the specified postfixes
 EXCLUDE_SOURCES = -path "./$(WORKFLOW_DIR)/*" -prune
-REQ_SOURCES = $(shell find . -depth -mindepth 1 -type f -name "*$(REQ_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
+SUBDIR_REQ_SOURCES = $(shell find . -mindepth 2 -type f -name "*$(REQ_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
+BASEDIR_REQ_SOURCES = $(shell find . -mindepth 1 -maxdepth 1 -type f -name "*$(REQ_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
 
 # Generate corresponding destination file names
-PSEUDO_DESTINATIONS = $(REQ_SOURCES:$(REQ_SUFFIX)=$(PSEUDO_SUFFIX))
-PCODE_DESTINATIONS  = $(REQ_SOURCES:$(REQ_SUFFIX)=$(PCODE_SUFFIX))
-PTEST_DESTINATIONS  = $(REQ_SOURCES:$(REQ_SUFFIX)=$(PTEST_SUFFIX))
+SUBDIR_PSEUDO_DESTINATIONS = $(SUBDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(PSEUDO_SUFFIX))
+SUBDIR_PCODE_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(CODE_SUFFIX))
+SUBDIR_PTEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(TEST_SUFFIX))
+
+BASEDIR_PSEUDO_DESTINATIONS = $(BASEDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(PSEUDO_SUFFIX))
+BASEDIR_PCODE_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(CODE_SUFFIX))
+BASEDIR_PTEST_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(TEST_SUFFIX))
 
 # Combine all destinations
-DESTINATIONS = $(PCODE_DESTINATIONS) $(PTEST_DESTINATIONS) $(PSEUDO_DESTINATIONS)
+DESTINATIONS = $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS) $(SUBDIR_PSEUDO_DESTINATIONS) \
+               $(BASEDIR_PCODE_DESTINATIONS) $(BASEDIR_PTEST_DESTINATIONS) $(BASEDIR_PSEUDO_DESTINATIONS)
+
 .PRECIOUS: $(DESTINATIONS)
+.PHONY:  setup template test clean help count_lines  subdirs base gtest
 
-# .PHONY: setup test clean help
-.PHONY:  setup template test clean help count_lines 
+all: subdirs base test count_lines
 
-all: $(DESTINATIONS) test count_lines
-# all: $(PTEST_DESTINATIONS) $(PSEUDO_DESTINATIONS) count_lines
+subdirs: $(SUBDIR_PSEUDO_DESTINATIONS) $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS)
 
-# Setup virtual environment if it does not already exist
-# setup:
-# 	@if [ ! -d "$(VENV_DIR)" ]; then \
-# 		echo "Setting up virtual environment..."; \
-# 		python3.13 -m venv $(VENV_DIR); \
-# 		$(PIP) install -r requirements.txt; \
-# 	else \
-# 		echo "Virtual environment already exists, skipping setup."; \
-# 	fi
+base: subdirs $(BASEDIR_PSEUDO_DESTINATIONS) $(BASEDIR_PCODE_DESTINATIONS) $(BASEDIR_PTEST_DESTINATIONS)
+
+test:
+ifeq ($(POLICY_MODE), python3.8)
+	@$(PYTHON) -m pytest --tb=line | grep -vE "^(platform|rootdir|plugins|collected)"
+else ifeq ($(POLICY_MODE), c++20)
+	$S	./runTests
+endif
 
 count_lines:
 	@echo "Counting lines of Python code and YAML files..."
-	@python_lines=$$(find . -type f -name "*_code.py" ! -name "*_test.py" ! -path "*/__pycache__/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
+	@python_lines=$$(find . -type f -name "*_xform.py" ! -name "*_test.py" ! -path "*/__pycache__/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
 	test_lines=$$(find . -type f -name "*_test.py" ! -path "*/__pycache__/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
-	yaml_lines=$$(find . -type f -name "*.yaml" ! -path "./policy/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
+	yaml_lines=$$(find . -type f -name "*.yaml" ! -path "./policy/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); 	total_lines=$$(($$python_lines + $$test_lines + $$yaml_lines)); \
 	total_lines=$$(($$python_lines + $$test_lines + $$yaml_lines)); \
 	echo "TOTAL LINES: $$total_lines = Code: $$python_lines + Test: $$test_lines (YAML: $$yaml_lines)"
 
@@ -75,15 +94,16 @@ count_lines:
 	@$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
 # Rule to generate _code.py from _pseudo.md
-%$(PCODE_SUFFIX): %$(PSEUDO_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform code   --policy $(POLICY_PY38)  --code $@
+%$(CODE_SUFFIX): %$(PSEUDO_SUFFIX)
+	$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
 
-# Rule to generate _test.py from _code.py
-%$(PTEST_SUFFIX): %$(PCODE_SUFFIX) %$(REQ_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --source $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_PTEST) --code $<    
+# Rule to generate _test.cpp from _code.cpp
+%$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(REQ_SUFFIX)
+	$(PYTHON) $(MAIN_SCRIPT) --source $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_TEST) --code $<
+ifeq ($(POLICY_MODE), c++20)
+	$(CXX) $(CXXFLAGS) $@ -lgtest -lgtest_main -o runTests
+endif
 
-test:
-	@$(PYTHON) -m pytest --tb=line | grep -vE "^(platform|rootdir|plugins|collected)"
 
 template:
 	@if [ "$(new_name)" = "" ]; then \
@@ -106,7 +126,9 @@ help:
 	@echo "Targets:"
 	@echo "  all       - Set up the environment and run the script if needed"
 	@echo "  setup     - Create a virtual environment and install dependencies"
-	@echo "  test      - runs the pytest"
+	@echo "  test      - Runs the tests for the selected POLICY_MODE"
+	@echo "  gtest     - Build and run GTest-based tests"
 	@echo "  clean     - Remove generated files and clean the environment"
-	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_req.yaml to <new_name>.yaml"	
-	@echo "  help      - Display this help message"
+	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_req.yaml to <new_name>.yaml" \
+	@echo "  help      - Display this help message
+
