@@ -122,7 +122,7 @@ class PromptManager:
             raise ValueError("System role is not set in class PromptManager().") 
         prompt: List[Dict[str, str]] = [self.system]
         if len(self.variable_list) > 0:
-            content = f"Perform substitution when the following variable names apear square brackets.\n"
+            content = "Perform substitution when the following variable names apear square brackets.\n"
             for variable_name, variable_value in self.variable_list:
                 content += f"  - {variable_name} = \"{variable_value}\".\n"
             prompt.append({"role": "user", "content": content})
@@ -234,7 +234,7 @@ class LlmManager:
 
 
 class LlmClient:
-    LITTERAL = "LITERAL"
+    LITERAL = "LITERAL"
     CODE_REF = "code_references"
 
     def __init__(self, policy_fname: str, code_fname: str = ""):
@@ -278,51 +278,37 @@ class LlmClient:
         return f"{self.COMMENT_PREFIX} {comment} {self.COMMENT_POSTFIX}"
 
     def create_prompt(self, prompt: PromptManager, xform_type: XformType, 
-                       source_fname: str, code_fname: str) -> None:
+                       recipe_fname: str, code_fname: str) -> None:
         """
         Generates a code prompt by processing input YAML files and saves the results to specified files.
         Args:
             prompt (PromptManager): The prompt manager to handle prompt creation.
             xform_type (XformType): The type of transformation to apply.
-            source_fname (str): The filename of the source YAML file.
+            recipe_fname (str): The filename of the source YAML file.
             code_fname (str): The filename of the code file to be included in the prompt.
         Raises:
             Exception: If an error occurs during file processing.
         """
         try:
-<<<<<<< HEAD
             key_prefix_pairs = self.POLICY_PAIRS
             prompt.system_prompt(self.ROLE_SYSTEM)
             prompt.append_prompt(self.ROLE_USER)
-=======
-            # EXTRACT POLICY - a llm prompt must start with high level system role and user role
-            with open(policy_fname, "r", encoding=ENCODING) as file:
-                policy = yaml.safe_load(file)
-                prompt.system_prompt(policy["role_system"])
-                prompt.append_prompt(policy["role_user"])
-                key_prefix_pairs = policy[self.POLICY_PAIRS]
-
->>>>>>> 8803b0ce045145edce068ce23a165a9a91ffd552
         
             # EXTRACT REQUIREMENTS - from req YAML using `key_prefix_pairs` list 
-            with open(source_fname, "r", encoding=ENCODING) as file:
+            with open(recipe_fname, "r", encoding=ENCODING) as file:
                 rules = yaml.safe_load(file)               
-                for rule in rules:
-                    if type(rule) is not str :
-                        print(f"{rule} type {type(rule)}")
-                        # msg = f"Invalid type for {self.POLICY_PAIRS} - key: {key} in {policy_fname}."
-                        # print(msg)
-                        # raise ValueError(msg)
-                    # if rule not in [self.LITTERAL, self.CODE_REF, self.POLICY_PAIRS]:
-                    #     msg = f"Invalid key in {source_fname}: {rule}."
-                    #     print(msg)
-                    #     raise ValueError(msg)
-                # for key, prefix in key_prefix_pairs:
-
                 prompt.add_variable("TARGET_NAME", rules.get("target_name", ""))
                 for key, prefix in key_prefix_pairs:
-                    if key == self.LITTERAL:
+
+                    # ADD LITERAL - Insert element directly from recipe
+                    if key == self.LITERAL:
                         prompt.append_prompt(prefix)
+
+                    # ADD RECIPE ELEMENT - direct copy over from recipe
+                    elif key in rules and not key.startswith("_"):
+                            prompt.append_prompt(prefix + "\n" + rules[key])
+
+                    # ADD FILE REFERENCES - the whole file
                     elif key == self.CODE_REF and key in rules:
                         references_str = rules[key]
                         references = [line.lstrip("- ").strip() for line in references_str.splitlines() if line.strip()]
@@ -338,32 +324,6 @@ class LlmClient:
                                 with open(target_path, 'r', encoding=ENCODING) as file:
                                     reference = file.read()
                                 prompt.append_prompt(cmd + "\n```\n" + reference + "\n```\n")
-                    elif key in rules and not key.startswith("_"):
-                            prompt.append_prompt(prefix + "\n" + rules[key])
-
-                            # if code_fname.endswith(".py"):
-                            #     module = ref_fname.split('/')[0]
-                            #     fname  = ref_fname.split('/')[1]
-                            #     cmd = (f"Use the following as instructions to understand how to use the package: {module}.\n"
-                            #             f"The package's module is stored in a file named {fname} from the subdirectory {module} :\n")
-                            #     with open(ref_fname, 'r', encoding=ENCODING) as file:
-                            #         reference = file.read()
-                            #     reference = self.strip_comments_python(reference)
-                            #     prompt.append_prompt(cmd +"\n```\n" + reference +"\n```\n" )
-                            # elif code_fname.endswith(".cpp"):
-                            #     target_base = Path(ref_fname)
-                            #     for suffix in self.TARGET_SUFFIXS:
-                            #         suffix = "." + suffix
-                            #         target_path = target_base.with_suffix(suffix)
-                            #         module = str(target_path).split('/')[0]
-                            #         fname  = str(target_path).split('/')[1]
-                            #         cmd = (f"Use the following code as instructions to understand how to use the C++ code: {target_path}.\n"
-                            #                f"The code code file named {fname} from the subdirectory {module} :\n")
-                            #         with open(target_path, 'r', encoding=ENCODING) as file:
-                            #             reference = file.read()
-                            #         prompt.append_prompt(cmd + "\n```\n" + reference + "\n```\n")
-                            # else:
-                            #     print(f"ERROR - Unknown file extension: {code_fname}")  
 
             # INCLUDE CODE - to be tested
             if xform_type is XformType.TEST:
@@ -384,16 +344,30 @@ class LlmClient:
                 "  Output file: %s\n"
                 "  Error type: %s\n"
                 "  Error details: %s",
-                source_fname, code_fname, type(e).__name__, e
+                recipe_fname, code_fname, type(e).__name__, e
             )
             raise
-    def reponse_to_dict(self, response: str, source_fname: str) -> str:
+
+# for rule in rules:
+#     if type(rule) is not str :
+    #    print(f"{rule} type {type(rule)}")
+        # msg = f"Invalid type for {self.POLICY_PAIRS} - key: {key} in {policy_fname}."
+        # print(msg)
+        # raise ValueError(msg)
+    # if rule not in [self.LITTERAL, self.CODE_REF, self.POLICY_PAIRS]:
+    #     msg = f"Invalid key in {recipe_fname}: {rule}."
+    #     print(msg)
+    #     raise ValueError(msg)
+# for key, prefix in key_prefix_pairs:
+
+
+    def process_response(self, response: str, recipe_fname: str) -> str:
         """
         Post-process the response
         Args:
             response (str): The response to be processed.
             xform_type (XformType): The type of transformation to be applied.
-            source_fname (str): The name of the source file.
+            recipe_fname (str): The name of the source file.
         Raises:
             Exception: If an error occurs during file processing - or if response is empty.
         """        
@@ -405,7 +379,7 @@ class LlmClient:
             # ADD LITERAL values (which are prefixed with underscore)
             literals = "\n"
             key_prefix_pairs = self.POLICY_PAIRS
-            with open(source_fname, "r", encoding=ENCODING) as file:
+            with open(recipe_fname, "r", encoding=ENCODING) as file:
                 rules = yaml.safe_load(file)
                 for _key, _ in key_prefix_pairs:
                     key = _key[1:]
@@ -422,24 +396,24 @@ class LlmClient:
 
         except Exception as e:
             error_type = type(e).__name__
-            print(f"An error occurred while processing files:\n  Input files:  {source_fname}\n")
+            print(f"An error occurred while processing files:\n  Input files:  {recipe_fname}\n")
             print(f"  Error type: {error_type}\n  Error details: {e}")
             raise
 
 
-def main_xform(policy_fname: str, source_fname: str, code_fname: str, dest_fname: str, 
+def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname: str, 
                xform_type: XformType, temperature: float, max_tokens: int, model: str) -> None:
     try:
         # CREATE LLM PROMPT
         prompt = PromptManager()
         client = LlmClient(policy_fname=policy_fname, code_fname=code_fname)
-        prompt.add_variable("SOURCE_FNAME", source_fname)
+        prompt.add_variable("RECIPE_FNAME", recipe_fname)
         prompt.add_variable("TARGET_FNAME", dest_fname)
         prompt.add_variable("CODE_FNAME", code_fname)
         client.create_prompt(prompt, xform_type=xform_type, 
-                             source_fname=source_fname, code_fname=code_fname)
+                             recipe_fname=recipe_fname, code_fname=code_fname)
         if prompt.prompt_compare_with_save(xform_type=xform_type, target=dest_fname):
-            print(f"\t\t {dest_fname} - Skipping generation, prompts match.")
+            print(f"\t\t {dest_fname} - Skipping transform, prompts match.")
             return  # KLUDGE - mid function abort
         
         # PROCESS LLM PROMPT
@@ -447,7 +421,7 @@ def main_xform(policy_fname: str, source_fname: str, code_fname: str, dest_fname
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
 
         # POST PROCESS RESPONSE
-        response_processed = client.reponse_to_dict(response, source_fname=source_fname)
+        response_processed = client.process_response(response, recipe_fname=recipe_fname)
         token_usage = f"TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
         header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
         header += client.comment_block(f"policy: {policy_fname}") + "\n"
@@ -485,15 +459,15 @@ def main():
     is_xform_enabled = True
     TEST_ENABLE = "test_enable"
     if args.xform is XformType.TEST: 
-        with open(args.source, "r", encoding=ENCODING) as file:
+        with open(args.recipe, "r", encoding=ENCODING) as file:
             rules = yaml.safe_load(file)
             is_xform_enabled = "true" in str(rules.get(TEST_ENABLE, "true")).lower()
             if not is_xform_enabled:
-                print(f"Skipping TEST generation for {args.source} as {TEST_ENABLE} is not set to True.")
+                print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is not set to True.")
                 return # KLUDGE - mid function abort
 
     if args is not None and is_xform_enabled:
-        main_xform(policy_fname=args.policy, source_fname=args.source, code_fname=args.code, dest_fname=args.dest, 
+        main_xform(policy_fname=args.policy, recipe_fname=args.recipe, code_fname=args.code, dest_fname=args.dest, 
                 xform_type=args.xform, temperature=args.temperature, max_tokens=args.maxtokens, model=args.model)
     else:
         print("Error: Failed to parse arguments.")
@@ -502,17 +476,23 @@ if __name__ == "__main__":
     main()
 
 ###########################################################################
-# TODO - makefile to process subdirectories first before base directory
-# TODO - pytest coverage  w/ summary report 
-# TODO - pytest autorun
 # TODO - Date is wrong Date: 2023-10-05
-# TODO - Fix references for non-python files
-# TODO - change _req.yaml ext to recipe.yaml
-# TODO - make gtest as its own rule
-# TODO - change source_fname to recipe_fname
+# TODO - have C++ code search for files to test.. or include/reference
 
-# TODO - xform needs to know target language
+# TODO - fix file name capitials... style - Class and functions.. 
+# TODO - fix OS Ubuntu ;()
+
 # TODO - makefile gtest enable
 # TODO - makefile not fail if no tests
-# TODO - #1?
-# TODO - #2?
+
+
+# TODO - make gtest as its own rule
+# TODO - pytest coverage  w/ summary report 
+# TODO - pytest autorun
+
+
+###############  DONE
+# - rename _req.yaml to recipe.yaml
+# - rename source_fname to recipe_fname
+# - rename key_prefix_pairs to key_prefixes
+

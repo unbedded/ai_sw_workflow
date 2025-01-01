@@ -46,5 +46,4 @@ key_prefix_pairs:
 
 comment_prefix: "#"
 comment_postfix: ""
-testing_target_suffixs: ["n.a."]
 

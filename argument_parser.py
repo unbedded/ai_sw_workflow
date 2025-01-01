@@ -29,11 +29,11 @@ class ArgumentParser:
             help="A path to the transformer rules file (default: None)"
         )
         self._parser.add_argument(
-            '-s', '--source',
+            '-r', '--recipe',
             required=True,
             type=str,
             default=" ",
-            help="A path source yaml file (required))"
+            help="A path recipe yaml file (required))"
         )
         self._parser.add_argument(
             '-d', '--dest',
@@ -64,7 +64,7 @@ class ArgumentParser:
         )
         # Bounds checking for float argument
         self._parser.add_argument(
-            '-T', '--temperature',
+            '-t', '--temperature',
             required=False,
             type=self._bounded_float,
             default=0.1,

@@ -1,10 +1,10 @@
 # ┌──────────────┐     ┌─────────────┐    ┌─────────────┐    ┌────────────┐
-# │ Requirements │     │ Use Case    │    │ Class/Func  │    │ PyTest     │
+# │ Requirements │     │ LowLvl Req  │    │ Class/Func  │    │ PyTest     │
 # │              ┼────►│             ┼───►│             ┼───►│            │
-# │  *_req.yaml  │ ▲   │   *_uc.md   │ ▲  │  *_xform.py │ ▲  │ *_test.py  │
+# |*_recipe.yaml │ ▲   │ *_pseudo.md │ ▲  │  *_code.py  │ ▲  │ *_test.py  │
 # └──────────────┘ │   └─────────────┘ │  └─────────────┘ │  └────────────┘
 #                  │                   │                  │                
-#               policy_uc.md     policy_python.md      policy_pytest.md     
+#               policy_pseudo.md  policy_code.md      policy_test.md     
 #                                                             
 ############################################################################
 
@@ -19,14 +19,14 @@ MODEL = 'gpt-4o'
 # MODEL = "gpt-3.5-turbo"
 MAX_TOKENS = 8000
 TEMPERATURE = 0.1
-MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -T=$(TEMPERATURE) --model=$(MODEL)
+MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -t=$(TEMPERATURE) --model=$(MODEL)
 
 # Compiler and flags
 CXX = g++
 CXXFLAGS = -std=c++2a -I/usr/include/gtest -pthread
 
 # Define source and destination suffixes
-REQ_SUFFIX  = _req.yaml
+RECIPE_SUFFIX  = _recipe.yaml
 PSEUDO_SUFFIX  = _pseudo.yaml
 POLICY_DIR  = ./$(WORKFLOW_DIR)/policy
 POLICY_PSEUDO=$(POLICY_DIR)/policy_pseudo.yaml
@@ -49,17 +49,17 @@ endif
 
 # Find all source files in subdirectories with the specified postfixes
 EXCLUDE_SOURCES = -path "./$(WORKFLOW_DIR)/*" -prune
-SUBDIR_REQ_SOURCES = $(shell find . -mindepth 2 -type f -name "*$(REQ_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
-BASEDIR_REQ_SOURCES = $(shell find . -mindepth 1 -maxdepth 1 -type f -name "*$(REQ_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
+SUBDIR_REQ_SOURCES = $(shell find . -mindepth 2 -type f -name "*$(RECIPE_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
+BASEDIR_REQ_SOURCES = $(shell find . -mindepth 1 -maxdepth 1 -type f -name "*$(RECIPE_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
 
 # Generate corresponding destination file names
-SUBDIR_PSEUDO_DESTINATIONS = $(SUBDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(PSEUDO_SUFFIX))
-SUBDIR_PCODE_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(CODE_SUFFIX))
-SUBDIR_PTEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(TEST_SUFFIX))
+SUBDIR_PSEUDO_DESTINATIONS = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
+SUBDIR_PCODE_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
+SUBDIR_PTEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
 
-BASEDIR_PSEUDO_DESTINATIONS = $(BASEDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(PSEUDO_SUFFIX))
-BASEDIR_PCODE_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(CODE_SUFFIX))
-BASEDIR_PTEST_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(REQ_SUFFIX)=$(TEST_SUFFIX))
+BASEDIR_PSEUDO_DESTINATIONS = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
+BASEDIR_PCODE_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
+BASEDIR_PTEST_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
 
 # Combine all destinations
 DESTINATIONS = $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS) $(SUBDIR_PSEUDO_DESTINATIONS) \
@@ -90,18 +90,18 @@ count_lines:
 	echo "TOTAL LINES: $$total_lines = Code: $$python_lines + Test: $$test_lines (YAML: $$yaml_lines)"
 
 # Rule to generate _pseudo.md from _req.md
-%$(PSEUDO_SUFFIX): %$(REQ_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
+%$(PSEUDO_SUFFIX): %$(RECIPE_SUFFIX)
+	$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
 # Rule to generate _code.py from _pseudo.md
 %$(CODE_SUFFIX): %$(PSEUDO_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --source $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
+	$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
 
 # Rule to generate _test.cpp from _code.cpp
-%$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(REQ_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --source $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_TEST) --code $<
+%$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(RECIPE_SUFFIX)
+	$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_TEST) --code $<
 ifeq ($(POLICY_MODE), c++20)
-	$(CXX) $(CXXFLAGS) $@ -lgtest -lgtest_main -o runTests
+#	$(CXX) $(CXXFLAGS) $@ -lgtest -lgtest_main -o runTests
 endif
 
 
@@ -111,7 +111,7 @@ template:
 		exit 1; \
 	fi
 	cp -r ai_sw_workflow/template ./$(new_name)
-	mv ./$(new_name)/template_req.yaml ./$(new_name)/$(new_name)_req.yaml
+	mv ./$(new_name)/template_recipe.yaml ./$(new_name)/$(new_name)_recipe.yaml
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -129,6 +129,6 @@ help:
 	@echo "  test      - Runs the tests for the selected POLICY_MODE"
 	@echo "  gtest     - Build and run GTest-based tests"
 	@echo "  clean     - Remove generated files and clean the environment"
-	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_req.yaml to <new_name>.yaml" \
+	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_recipe.yaml to <new_name>.yaml" \
 	@echo "  help      - Display this help message
 
