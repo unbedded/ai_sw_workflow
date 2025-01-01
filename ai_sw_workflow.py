@@ -290,13 +290,35 @@ class LlmClient:
             Exception: If an error occurs during file processing.
         """
         try:
+<<<<<<< HEAD
             key_prefix_pairs = self.POLICY_PAIRS
             prompt.system_prompt(self.ROLE_SYSTEM)
             prompt.append_prompt(self.ROLE_USER)
+=======
+            # EXTRACT POLICY - a llm prompt must start with high level system role and user role
+            with open(policy_fname, "r", encoding=ENCODING) as file:
+                policy = yaml.safe_load(file)
+                prompt.system_prompt(policy["role_system"])
+                prompt.append_prompt(policy["role_user"])
+                key_prefix_pairs = policy[self.POLICY_PAIRS]
+
+>>>>>>> 8803b0ce045145edce068ce23a165a9a91ffd552
         
             # EXTRACT REQUIREMENTS - from req YAML using `key_prefix_pairs` list 
             with open(source_fname, "r", encoding=ENCODING) as file:
                 rules = yaml.safe_load(file)               
+                for rule in rules:
+                    if type(rule) is not str :
+                        print(f"{rule} type {type(rule)}")
+                        # msg = f"Invalid type for {self.POLICY_PAIRS} - key: {key} in {policy_fname}."
+                        # print(msg)
+                        # raise ValueError(msg)
+                    # if rule not in [self.LITTERAL, self.CODE_REF, self.POLICY_PAIRS]:
+                    #     msg = f"Invalid key in {source_fname}: {rule}."
+                    #     print(msg)
+                    #     raise ValueError(msg)
+                # for key, prefix in key_prefix_pairs:
+
                 prompt.add_variable("TARGET_NAME", rules.get("target_name", ""))
                 for key, prefix in key_prefix_pairs:
                     if key == self.LITTERAL:
