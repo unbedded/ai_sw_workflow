@@ -17,6 +17,7 @@ role_user: |
     - Use pytest parameterization to create concise, readable, and maintainable test cases.
     - Do not use pytest's mocking features.
 
+  - Document the file header with best practices, Include the current date as [DATE].
   - Organize tests logically to enhance clarity and maintainability.
   - Write tests that are easy to read, with clean code and descriptive function names.
   - Document the file header with explanations, expectations, and high-level details about the test cases.

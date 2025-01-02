@@ -21,9 +21,12 @@ MAX_TOKENS = 8000
 TEMPERATURE = 0.1
 MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -t=$(TEMPERATURE) --model=$(MODEL)
 
-# Compiler and flags
+# C++ Compiler and flags
+GTEST_INCLUDE = /usr/local/include/gtest
+GTEST_LIB = /usr/local/lib
 CXX = g++
-CXXFLAGS = -std=c++2a -I/usr/include/gtest -pthread
+CXXFLAGS = -std=c++2a -I$(GTEST_INCLUDE) 
+LDFLAGS =  -lgtest -lgtest_main -pthread
 
 # Define source and destination suffixes
 RECIPE_SUFFIX  = _recipe.yaml
@@ -32,8 +35,8 @@ POLICY_DIR  = ./$(WORKFLOW_DIR)/policy
 POLICY_PSEUDO=$(POLICY_DIR)/policy_pseudo.yaml
 
 # Conditional variable to switch policies
-# POLICY_MODE = c++20
-POLICY_MODE = python3.8
+POLICY_MODE = c++20
+# POLICY_MODE = python3.8
 
 ifeq ($(POLICY_MODE), python3.8)
 CODE_SUFFIX   = _code.py
@@ -51,22 +54,27 @@ endif
 EXCLUDE_SOURCES = -path "./$(WORKFLOW_DIR)/*" -prune
 SUBDIR_REQ_SOURCES = $(shell find . -mindepth 2 -type f -name "*$(RECIPE_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
 BASEDIR_REQ_SOURCES = $(shell find . -mindepth 1 -maxdepth 1 -type f -name "*$(RECIPE_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
+GTEST_SOURCES := $(shell find . -type f -name '*_test.cpp')
+GTEST_EXECUTABLES := $(patsubst %.cpp, %.out, $(GTEST_SOURCES))
 
 # Generate corresponding destination file names
 SUBDIR_PSEUDO_DESTINATIONS = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
 SUBDIR_PCODE_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
 SUBDIR_PTEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
+SUBDIR_TEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX:.cpp=))
 
 BASEDIR_PSEUDO_DESTINATIONS = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
 BASEDIR_PCODE_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
-BASEDIR_PTEST_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
+# BASEDIR_PTEST_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
 
 # Combine all destinations
 DESTINATIONS = $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS) $(SUBDIR_PSEUDO_DESTINATIONS) \
-               $(BASEDIR_PCODE_DESTINATIONS) $(BASEDIR_PTEST_DESTINATIONS) $(BASEDIR_PSEUDO_DESTINATIONS)
+               $(BASEDIR_PCODE_DESTINATIONS)  $(BASEDIR_PSEUDO_DESTINATIONS) \
+			   $(SUBDIR_TEST_DESTINATIONS)
+			#    $(BASEDIR_PTEST_DESTINATIONS)
 
 .PRECIOUS: $(DESTINATIONS)
-.PHONY:  setup template test clean help count_lines  subdirs base gtest
+.PHONY:  setup template test clean help count_lines  subdirs base 
 
 all: subdirs base test count_lines
 
@@ -76,9 +84,13 @@ base: subdirs $(BASEDIR_PSEUDO_DESTINATIONS) $(BASEDIR_PCODE_DESTINATIONS) $(BAS
 
 test:
 ifeq ($(POLICY_MODE), python3.8)
-	@$(PYTHON) -m pytest --tb=line | grep -vE "^(platform|rootdir|plugins|collected)"
+	coverage run -m pytest --tb=line | grep -vE "^(platform|rootdir|plugins|collected)"
+	coverage report -m
 else ifeq ($(POLICY_MODE), c++20)
-	$S	./runTests
+	@for test in $(GTEST_EXECUTABLES); do \
+		echo "Running $$test"; \
+		$$test; \
+	done
 endif
 
 count_lines:
@@ -99,11 +111,11 @@ count_lines:
 
 # Rule to generate _test.cpp from _code.cpp
 %$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(RECIPE_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_TEST) --code $<
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@ --xform test --policy $(POLICY_TEST) --code $<
 ifeq ($(POLICY_MODE), c++20)
-#	$(CXX) $(CXXFLAGS) $@ -lgtest -lgtest_main -o runTests
+	$(CXX) $(CXXFLAGS) -L$(GTEST_LIB) $@ $< $(LDFLAGS) -o $(@:.cpp=)
+	$(@:.cpp=)
 endif
-
 
 template:
 	@if [ "$(new_name)" = "" ]; then \
@@ -118,7 +130,8 @@ clean:
 	rm -rfv  $(DESTINATIONS)
 	find . -type f -name ".prompt_*" -exec rm -f {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
-
+	find . -type f -name '*.out' -exec rm -f {} +	
+	find . -type f -name '*_code.hpp' -delete
 # Display help message
 help:
 	@echo "Usage: make [target]"
@@ -127,7 +140,6 @@ help:
 	@echo "  all       - Set up the environment and run the script if needed"
 	@echo "  setup     - Create a virtual environment and install dependencies"
 	@echo "  test      - Runs the tests for the selected POLICY_MODE"
-	@echo "  gtest     - Build and run GTest-based tests"
 	@echo "  clean     - Remove generated files and clean the environment"
 	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_recipe.yaml to <new_name>.yaml" \
 	@echo "  help      - Display this help message

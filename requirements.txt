@@ -1,5 +1,6 @@
 openai
 pytest
 pyyaml
-pytest-xdist
+coverage
+
 

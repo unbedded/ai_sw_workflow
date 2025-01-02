@@ -34,6 +34,8 @@ from argument_parser import ArgumentParser, XformType
 from pathlib import Path
 from enum import Enum
 from typing import List, Dict
+from datetime import datetime
+
 
 ENCODING = 'utf-8'
 FLOWDIAG_PSEUDO = """
@@ -124,7 +126,7 @@ class PromptManager:
         if len(self.variable_list) > 0:
             content = "Perform substitution when the following variable names apear square brackets.\n"
             for variable_name, variable_value in self.variable_list:
-                content += f"  - {variable_name} = \"{variable_value}\".\n"
+                content += f"  - Let {variable_name} = \"{variable_value}\".\n"
             prompt.append({"role": "user", "content": content})
         prompt += self.user_list
         return prompt
@@ -410,6 +412,7 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         prompt = PromptManager()
         client = LlmClient(policy_fname=policy_fname, code_fname=code_fname)
         filename_stem = Path(dest_fname).stem
+        prompt.add_variable("DATE", datetime.now().strftime("%Y-%m-%d"))
         prompt.add_variable("RECIPE_FNAME", recipe_fname)
         prompt.add_variable("TARGET_FNAME", dest_fname)
         prompt.add_variable("CODE_FNAME", code_fname)
@@ -480,22 +483,19 @@ if __name__ == "__main__":
     main()
 
 ###########################################################################
-# TODO - Date is wrong Date: 2023-10-05
-# TODO - have C++ code search for files to test.. or include/reference
-# TODO - fix OS Ubuntu ;()
 # TODO - Policy cleanup - less verbose - more specific
+# TODO - fix fibinacci test - infinite loop  [ RUN      ] FibonacciTest.ThrowsInvalidArgumentForNegativeIndex
+# - README - how to setup 
 
 ### MAKEFILE
-# TODO - makefile gtest enable
-# TODO - makefile not fail if no tests
 # TODO - make gtest as its own rule
+# TODO - Trigger builld if RECIPE changes - %$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(CODE_SUFFIX)
+# TODO _ how to run tests w/ "make test"
+
+
+#
 
 #### TESTING
-# TODO - pytest coverage  w/ summary report 
-# TODO - pytest autorun
-# TODO - Add auto-running of gtest tests to Makefile
 
 ###############  DONE
-- fix file name beinf references wrong... style - Class and functions.. 
-- rename policy key from "prefix_pairs" to "prompt_elements"
-- Split postfix_elements out of prompt_elements
+
