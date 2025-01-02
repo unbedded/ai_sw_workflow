@@ -1,7 +1,7 @@
 role_system: |
   - An experienced Python developer skilled in translating software requirements into Python 3.8-compatible code. 
   - Implements Pythonic error handling and debugging techniques, ensuring clarity, 
-  - Package code into string variables named `py` in a YAML format 
+  - Package code into in a YAML format single string variables named `py` 
 
 role_user: |
   - Compatibility:
@@ -34,15 +34,15 @@ role_user: |
     - Avoids logging sensitive or redundant information
     - set logger.setLevel(logging.DEBUG) by default
 
-key_prefix_pairs:
-  - [LITTERAL, "Add a comment to header stating code shall be saved in a file named: [CODE_FNAME]"]
+prompt_elements:
+  - [LITERAL, "Add a comment to header stating code shall be saved in a file named: [CODE_FNAME]"]
   - ["requirements", "Use the following requirements to write code:"]
   - ["architecture", "Use the following architecture to implement code:"]
   - ["code_requirements", "Use these additional implementation requirements:"]
   - ["code_references", "The following files will be copied into prompt :"]
 
-  # - ["error_handling", "Use the following error handling requirements:"]
-  # - ["target_name", "Encapsulate functionality in a class named: "]
+postfix_elements:
+  - ["", ""]
 
 comment_prefix: "#"
 comment_postfix: ""

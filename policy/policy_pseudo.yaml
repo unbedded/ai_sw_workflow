@@ -44,15 +44,19 @@ role_user: |
     - <list implmentation requirements here>
   ```
 
-key_prefix_pairs:
+prompt_elements:
+  - [LITERAL, "The code filename stem shall be: [FILENAME_STEM]"] 
   - ["requirements", "Use the following requirements to fill out the YAML_TEMPLATE:"]
   - ["architecture", "Use the following architecture to fill out the YAML_TEMPLATE `requirements:` and `architecture:` sections:"]
-  - ["_target_name", "Direct copy this yaml into target yaml:"]
-  - ["_requirements", "Direct copy this yaml into target yaml:"]
-  - ["_code_requirements", "Direct copy this yaml into target yaml:"]
-  - ["_test_enable", "Is test required? :"]
-  - ["_test_requirements", "Direct copy this yaml into target yaml:"]
-  - ["_code_references", "Direct copy this yaml into target yaml: "]
+
+postfix_elements:
+  - ["target_name", "Direct copy this yaml into target yaml:"]
+  - ["requirements", "Direct copy this yaml into target yaml:"]
+  - ["code_requirements", "Direct copy this yaml into target yaml:"]
+  - ["test_enable", "Is test required? :"]
+  - ["test_requirements", "Direct copy this yaml into target yaml:"]
+  - ["code_references", "Direct copy this yaml into target yaml: "]
+
 
 comment_prefix: "#"
 comment_postfix: ""

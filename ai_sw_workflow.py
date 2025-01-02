@@ -242,7 +242,8 @@ class LlmClient:
             # EXTRACT POLICY - a llm prompt must start with high level system role and user role
             with open(policy_fname, "r", encoding=ENCODING) as file:
                 policy = yaml.safe_load(file)
-            self.POLICY_PAIRS   = policy["key_prefix_pairs"]
+            self.PROMPT_ELEMENTS    = policy["prompt_elements"]
+            self.POSTFIX_ELEMENTS   = policy.get("postfix_elements", ["", ""])
             self.ROLE_SYSTEM    = policy["role_system"]
             self.ROLE_USER      = policy["role_user"]
             self.COMMENT_PREFIX = policy["comment_prefix"]
@@ -251,6 +252,8 @@ class LlmClient:
             if self.TARGET_SUFFIXS == [""]:
                 extension = os.path.splitext(code_fname)[1][1:]  # Removes the leading period
                 self.TARGET_SUFFIXS = ["cpp", "hpp"]
+            if self.POSTFIX_ELEMENTS == ["", ""]:
+                self.POSTFIX_ELEMENTS = None                
         except Exception as e:  
             logging.error(
                 "An error occurred while processing files:\n"
@@ -290,27 +293,27 @@ class LlmClient:
             Exception: If an error occurs during file processing.
         """
         try:
-            key_prefix_pairs = self.POLICY_PAIRS
+            prompt_elements = self.PROMPT_ELEMENTS
             prompt.system_prompt(self.ROLE_SYSTEM)
             prompt.append_prompt(self.ROLE_USER)
         
-            # EXTRACT REQUIREMENTS - from req YAML using `key_prefix_pairs` list 
+            # EXTRACT REQUIREMENTS - from req YAML using `prompt_elements` list 
             with open(recipe_fname, "r", encoding=ENCODING) as file:
-                rules = yaml.safe_load(file)               
-                prompt.add_variable("TARGET_NAME", rules.get("target_name", ""))
-                for key, prefix in key_prefix_pairs:
+                recipe = yaml.safe_load(file)               
+                prompt.add_variable("TARGET_NAME", recipe.get("target_name", ""))
+                for key, prefix in prompt_elements:
 
                     # ADD LITERAL - Insert element directly from recipe
                     if key == self.LITERAL:
                         prompt.append_prompt(prefix)
 
                     # ADD RECIPE ELEMENT - direct copy over from recipe
-                    elif key in rules and not key.startswith("_"):
-                            prompt.append_prompt(prefix + "\n" + rules[key])
+                    elif key in recipe:
+                        prompt.append_prompt(prefix + "\n" + recipe[key])
 
                     # ADD FILE REFERENCES - the whole file
-                    elif key == self.CODE_REF and key in rules:
-                        references_str = rules[key]
+                    elif key == self.CODE_REF and key in recipe:
+                        references_str = recipe[key]
                         references = [line.lstrip("- ").strip() for line in references_str.splitlines() if line.strip()]
                         for ref_fname in references:
                             target_base = Path(ref_fname)
@@ -351,14 +354,14 @@ class LlmClient:
 # for rule in rules:
 #     if type(rule) is not str :
     #    print(f"{rule} type {type(rule)}")
-        # msg = f"Invalid type for {self.POLICY_PAIRS} - key: {key} in {policy_fname}."
+        # msg = f"Invalid type for {self.PROMPT_ELEMENTS} - key: {key} in {policy_fname}."
         # print(msg)
         # raise ValueError(msg)
-    # if rule not in [self.LITTERAL, self.CODE_REF, self.POLICY_PAIRS]:
+    # if rule not in [self.LITTERAL, self.CODE_REF, self.PROMPT_ELEMENTS]:
     #     msg = f"Invalid key in {recipe_fname}: {rule}."
     #     print(msg)
     #     raise ValueError(msg)
-# for key, prefix in key_prefix_pairs:
+# for key, prefix in prompt_elements:
 
 
     def process_response(self, response: str, recipe_fname: str) -> str:
@@ -378,20 +381,19 @@ class LlmClient:
 
             # ADD LITERAL values (which are prefixed with underscore)
             literals = "\n"
-            key_prefix_pairs = self.POLICY_PAIRS
+            prompt_elements = self.POSTFIX_ELEMENTS
             with open(recipe_fname, "r", encoding=ENCODING) as file:
-                rules = yaml.safe_load(file)
-                for _key, _ in key_prefix_pairs:
-                    key = _key[1:]
-                    if _key.startswith("_") and key in rules:
-                        # YIKES _ just yaml.dump() did horrible things to the yaml - so I had to do it manually
-                        content = rules[key]
-                        if isinstance(content, bool):
-                            literals += f"\n{key}: {content}"
-                        else:
-                            literals += f"\n{key}: |\n"
-                            literals += "\n".join([f"  {line}" for line in content.splitlines()])
-                            literals += "\n"
+                recipe = yaml.safe_load(file)
+                if prompt_elements is not None:
+                    for key, _ in prompt_elements:
+                        if key in recipe:
+                            content = recipe[key]
+                            if isinstance(content, bool):
+                                literals += f"\n{key}: {content}"
+                            else:
+                                literals += f"\n{key}: |\n"
+                                literals += "\n".join([f"  {line}" for line in content.splitlines()])
+                                literals += "\n"
             return response + literals
 
         except Exception as e:
@@ -407,9 +409,11 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         # CREATE LLM PROMPT
         prompt = PromptManager()
         client = LlmClient(policy_fname=policy_fname, code_fname=code_fname)
+        filename_stem = Path(dest_fname).stem
         prompt.add_variable("RECIPE_FNAME", recipe_fname)
         prompt.add_variable("TARGET_FNAME", dest_fname)
         prompt.add_variable("CODE_FNAME", code_fname)
+        prompt.add_variable("FILENAME_STEM", filename_stem)
         client.create_prompt(prompt, xform_type=xform_type, 
                              recipe_fname=recipe_fname, code_fname=code_fname)
         if prompt.prompt_compare_with_save(xform_type=xform_type, target=dest_fname):
@@ -463,7 +467,7 @@ def main():
             rules = yaml.safe_load(file)
             is_xform_enabled = "true" in str(rules.get(TEST_ENABLE, "true")).lower()
             if not is_xform_enabled:
-                print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is not set to True.")
+                print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is FALSE.")
                 return # KLUDGE - mid function abort
 
     if args is not None and is_xform_enabled:
@@ -478,21 +482,20 @@ if __name__ == "__main__":
 ###########################################################################
 # TODO - Date is wrong Date: 2023-10-05
 # TODO - have C++ code search for files to test.. or include/reference
-
-# TODO - fix file name capitials... style - Class and functions.. 
 # TODO - fix OS Ubuntu ;()
+# TODO - Policy cleanup - less verbose - more specific
 
+### MAKEFILE
 # TODO - makefile gtest enable
 # TODO - makefile not fail if no tests
-
-
 # TODO - make gtest as its own rule
+
+#### TESTING
 # TODO - pytest coverage  w/ summary report 
 # TODO - pytest autorun
-
+# TODO - Add auto-running of gtest tests to Makefile
 
 ###############  DONE
-# - rename _req.yaml to recipe.yaml
-# - rename source_fname to recipe_fname
-# - rename key_prefix_pairs to key_prefixes
-
+- fix file name beinf references wrong... style - Class and functions.. 
+- rename policy key from "prefix_pairs" to "prompt_elements"
+- Split postfix_elements out of prompt_elements

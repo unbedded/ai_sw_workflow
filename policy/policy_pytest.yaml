@@ -21,11 +21,14 @@ role_user: |
   - Write tests that are easy to read, with clean code and descriptive function names.
   - Document the file header with explanations, expectations, and high-level details about the test cases.
 
-key_prefix_pairs:
-  - [self.LITTERAL, "Unit Test code shall be saved in a file named: [TARGET_FNAME]"]
-  - [self.LITTERAL, "Target code to be tested comes from a file named: [CODE_FNAME]"]
+prompt_elements:
+  - [LITERAL, "Unit Test code shall be saved in a file named: [TARGET_FNAME]"]
+  - [LITERAL, "Target code to be tested comes from a file named: [CODE_FNAME]"]
   - ["requirements", "The code you are testing is based on the following requirements:"]
   - ["test_requirements", "Use the following aditional test requirements:"]
+
+postfix_elements:
+  - ["", ""]
 
 comment_prefix: "#"
 comment_postfix: ""

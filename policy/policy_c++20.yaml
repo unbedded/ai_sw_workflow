@@ -6,14 +6,13 @@ role_system: |
     - hpp contains code declarations and inline functions, optimized for critical performance scenarios.
 
 role_user: |
-  - Generate code compatible with modern C++20 standards.
-    
   - Coding Standards:
-    - Follow best practices for C++20 style and structure.
-    - Use strong typing and the STL (Standard Template Library) effectively.
+    - Generate code compatible with modern C++20 standards.
+    - Use the STL (Standard Template Library) effectively.
     - Prefer `std::vector`, `std::map`, and other STL containers over raw pointers.
 
   - Documentation:
+    - Comment the file header similary to python docstring.
     - Provide file headers with best practices, including today's date.
     - Include explanations in comments for all functions, methods, and important sections of code.
 
@@ -26,13 +25,16 @@ role_user: |
     - Use `std::cerr` or an appropriate C++ logging library for debug information.
     - Include a method to print debug statements to stdout, controlled by a `debug_enable` boolean variable (default `false`).
 
-key_prefix_pairs:
-  - [LITTERAL, "Add a comment to header stating code shall be saved in a file named: [CODE_FNAME]"]
+prompt_elements:
+  - [LITTERAL, "The code filename stem shall be: [FILENAME_STEM]"] 
+  - [LITTERAL, "Add a comment to header with the filename and today's date."]
   - ["requirements", "Use the following requirements to write code:"]
   - ["architecture", "Use the following architecture to implement code:"]
   - ["code_requirements", "Use these additional implementation requirements:"]
   - ["code_references", "The following files will be copied into prompt :"]
 
+postfix_elements:
+  - ["", ""]
 
 comment_prefix: "//"
 comment_postfix: ""

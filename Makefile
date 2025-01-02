@@ -32,8 +32,8 @@ POLICY_DIR  = ./$(WORKFLOW_DIR)/policy
 POLICY_PSEUDO=$(POLICY_DIR)/policy_pseudo.yaml
 
 # Conditional variable to switch policies
-POLICY_MODE = c++20
-# POLICY_MODE = python3.8
+# POLICY_MODE = c++20
+POLICY_MODE = python3.8
 
 ifeq ($(POLICY_MODE), python3.8)
 CODE_SUFFIX   = _code.py
@@ -91,15 +91,15 @@ count_lines:
 
 # Rule to generate _pseudo.md from _req.md
 %$(PSEUDO_SUFFIX): %$(RECIPE_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
 # Rule to generate _code.py from _pseudo.md
 %$(CODE_SUFFIX): %$(PSEUDO_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
 
 # Rule to generate _test.cpp from _code.cpp
 %$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(RECIPE_SUFFIX)
-	$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_TEST) --code $<
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@  --xform test  --policy $(POLICY_TEST) --code $<
 ifeq ($(POLICY_MODE), c++20)
 #	$(CXX) $(CXXFLAGS) $@ -lgtest -lgtest_main -o runTests
 endif
