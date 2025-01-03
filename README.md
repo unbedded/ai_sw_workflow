@@ -8,13 +8,105 @@
 </div>
 
 
-### Abstract
+# Abstract
 Current AI-assisted coding tools primarily focus on isolated tasks within the software development lifecycle, such as writing, testing, and reviewing code. This fragmented approach limits their effectiveness and fails to provide a comprehensive solution that integrates all stages of development.
 This paper introduces an end-to-end AI-assisted software development workflow that automates the entire process—from high-level requirements to detailed design, code generation, and automated unit testing. The proposed workflow ensures well-documented artifacts at every stage while allowing for user intervention when necessary. This approach addresses the limitations of current AI coding assistants, which often operate only at isolated stages of software development.
 
 The diagram above leverages the Model-Based Systems Engineering (MBSE) V-Diagram and shows the necessary artifacts to support the full-cycle workflow proposed by this paper.
 
-### Overview
+# Setup
+### Download ai_sw_workflow.git
+The template command creates a recipe template fibonacci/fibonacci_recipe.yaml 
+```
+mkdir aiproject
+cd aiproject
+git clone git@github.com:unbedded/ai_sw_workflow.git
+cp Makefile ../
+make template new_name=fibonacci
+```
+### Create a Recipe
+Paste the following into  ./fibinacci/fibinacci_recipe.yaml
+```
+target_name: Fibonacci
+
+requirements: |
+  - Implement method get(index) 
+  - Return Fibonacci number at the specified index.
+  - Return zero if index is not a positive integer.  
+
+architecture: |
+  - Encapsulate functionality into class named [TARGET_NAME].
+  - thread-safe is not required - single-threaded operation is sufficient.
+  - Accept an optional maximum index (max_index) during initialization to limit the range of Fibonacci numbers.
+  - Handle edge cases and invalid operations predictably.
+  - Use caching to store previously calculated Fibonacci numbers for performance optimization.
+
+# code_requirements: |
+#   - <list implmentation requirements here>
+
+test_enable: True
+test_requirements: |
+  - test edge cases and invalid operations
+  - Include import logging
+  
+# code_references: |
+#   - <list files to reference>  
+```
+
+## AutoGenerating Python Code
+
+### Prerequistes
+Edit Makefile to select language
+```
+# Conditional variable to switch between language policies
+POLICY_MODE = python3.8
+```
+
+The project will work with python 3.8 or greater. your virtual enviroment must install the ./ai_sw_workflow/requirements.txt which includes module dependencies:
+```
+openai
+pytest
+pyyaml
+coverage
+```
+### Activate and Make
+```
+source .venv/bin/activate
+make
+```
+
+
+## AutoGenerating C++ Code
+### Prerequistes
+Edit Makefile to select language
+```
+# Conditional variable to switch between language policies
+POLICY_MODE = c++20
+```
+Verify your complier supports c++20  (202002L → C++20)
+```
+preact@oryx:~/sw/example_ai_workflow$ g++ --version
+g++ (Ubuntu 9.4.0-1ubuntu1~20.20.02L) 9.4.0
+Copyright (C) 2019 Free Software Foundation, Inc.
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+```
+Install GoogleTest
+```
+sudo apt update
+sudo apt install libgtest-dev
+```
+
+To auto-generate the code and run the unit test just make.
+ - CODE POLICY: Creating C++ code *(POLICY_MODE = c++20)* the makefile selects std=c++2a and `policy=ai_sw_workflow/policy/policy_c+20.yaml`. 
+  - TESTING POLICY:  The testing policy `policy=ai_sw_workflow/policy/policy_test.yaml` will also be selected to make gtest unit tests.  You must have previouly install gtest. 
+```
+source .venv/bin/activate
+make
+```
+
+# Overview
 AI solutions must address the *Complexity vs Efficacy* trade-off. The more complex a task the more guessing AI performs, unless you are leveraging a well know pattern. Succesful AI solutions for complex tasks must breakdown problem in to hierarchical simpler tasks handled by multiple agents. Decomposing problems into structured stages is a concept embraced by agentic orchestration tools like CrewAI and LangChain.
 
 **Pseudocode Intermediate** - While the primary focus of this paper is on software development, the same workflow can be applied to a variety of other domains. The workflow leverages AI large language models (LLMs) to transform high-level task descriptions into a detailed pseudo-language intermediate description. Using AI to transforming your problem into a LLM friendly pseudo language is a powerful tool. This intermediate step allows developers to manually review pipeline artifacts and exercise control over the process at an intermediate pseudo-language level what leveraging AI to peform the heavy lifting to bootstrap the pseudo langage detailed descriptions.

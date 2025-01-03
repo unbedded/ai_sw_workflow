@@ -141,6 +141,7 @@ help:
 	@echo "  setup     - Create a virtual environment and install dependencies"
 	@echo "  test      - Runs the tests for the selected POLICY_MODE"
 	@echo "  clean     - Remove generated files and clean the environment"
-	@echo "  template new_name=<desired_new_name>  - Copy ai_sw_workflow/template to ./<new_name> and rename template_recipe.yaml to <new_name>.yaml" \
-	@echo "  help      - Display this help message
+	@echo "  help      - Display this help message"
+	@echo "  template new_name=<name> " 
+	@echo "            - Copy ai_sw_workflow/template to ./<new_name> and rename template_recipe.yaml to <new_name>.yaml"
 
