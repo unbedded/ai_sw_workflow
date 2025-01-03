@@ -21,9 +21,23 @@ The template command creates a recipe template fibonacci/fibonacci_recipe.yaml
 mkdir aiproject
 cd aiproject
 git clone git@github.com:unbedded/ai_sw_workflow.git
-cp Makefile ../
+cp ai_sw_workflow/Makefile ../
 make template new_name=fibonacci
 ```
+### OPENAI_API_KEY
+Create an openAI API account and store the API key in an enviroment variable. 
+```
+export OPENAI_API_KEY="sk-proj-nImqa8o3Lp-7........PSVSygA"
+```
+### MODEL
+Makefile has several models it will work with. The code quality of gpt-4o is far suppeior to 3.5-turbo
+```
+MODEL = 'gpt-4o'
+# MODEL = 'gpt-4o-mini'
+# MODEL = 'o1-mini'
+# MODEL = "gpt-3.5-turbo"
+```
+
 ### Create a Recipe
 Paste the following into  ./fibinacci/fibinacci_recipe.yaml
 ```
@@ -33,6 +47,7 @@ requirements: |
   - Implement method get(index) 
   - Return Fibonacci number at the specified index.
   - Return zero if index is not a positive integer.  
+  - Name variables based on pirate slang
 
 architecture: |
   - Encapsulate functionality into class named [TARGET_NAME].
@@ -70,6 +85,9 @@ pyyaml
 coverage
 ```
 ### Activate and Make
+Run the makefile to autogenerate code and build test. The makefile uses the following policies for autogeneration:
+- CODE POLICY: `policy=ai_sw_workflow/policy/policy_python3.8.yaml`:
+- TESTING POLICY: `policy=ai_sw_workflow/policy/policy_pytest.yaml`:
 ```
 source .venv/bin/activate
 make
@@ -98,9 +116,9 @@ sudo apt update
 sudo apt install libgtest-dev
 ```
 
-To auto-generate the code and run the unit test just make.
- - CODE POLICY: Creating C++ code *(POLICY_MODE = c++20)* the makefile selects std=c++2a and `policy=ai_sw_workflow/policy/policy_c+20.yaml`. 
-  - TESTING POLICY:  The testing policy `policy=ai_sw_workflow/policy/policy_test.yaml` will also be selected to make gtest unit tests.  You must have previouly install gtest. 
+Run the makefile to autogenerate code and build test. The makefile uses the following policies for autogeneration:
+- CODE POLICY: `policy=ai_sw_workflow/policy/policy_c+20.yaml`:
+- TESTING POLICY: `policy=ai_sw_workflow/policy/policy_gtest.yaml`:
 ```
 source .venv/bin/activate
 make
