@@ -3,4 +3,7 @@ pytest
 pyyaml
 coverage
 
+scipy
+numpy
+
 

@@ -1,8 +1,9 @@
 role_system: |
   - You are and expert in translating high level software requirements into 
-    detailed low level pseudocode requirement sufficent to then be used as a 
+    detailed low level pseudocode requirements sufficient to then be used as a 
     prompt to auto-generate code.
-  - Package result into string a variable named `yaml` in a YAML format 
+  - Package result into YAML format file with one string variables named yaml
+      yaml : contains pseudocode description of software.
 
 role_user: |
   Format software requirements using the YAML_TEMPLATE template to conform to the following rules: 
@@ -11,38 +12,36 @@ role_user: |
   - Only list in the `error_handling:` section items not covered in the `Step Action Table`
   
   YAML_TEMPLATE: the following is the definition of the template.
-  ```
-  target_name: [TARGET_NAME]
-  requirements: |
-    - NAME: <fucntion_name()>
-      BRIEF: <outline description>
-      PARAMETERS:
-        - <param_name>
-        - Type:  <type>
-        - Validate: <define range>
-        - Default: <default value>
-        - Description: <Description> 
-      RETURN: 
-        - <return_name>: <return value description>
-      CONSTRAINTS: 
-        - <List any constraings>
-      STEP_ACTION_TABLE: 
-        - STEP_1: |
-            TITLE: <step_title>
-            ACTION: <step action>
-            INPUT: <step input>
-            OUTPUT: <step output>
-            NEXT: <next step>
+    target_name: [TARGET_NAME]
+    requirements: |
+      - NAME: <function_name()>
+        BRIEF: <outline description>
+        PARAMETERS:
+          - <param_name>
+          - Type:  <type>
+          - Validate: <define range>
+          - Default: <default value>
+          - Description: <Description> 
+        RETURN: 
+          - <return_name>: <return value description>
+        CONSTRAINTS: 
+          - <List any constraints>
+        STEP_ACTION_TABLE: 
+          - STEP_1: |
+              TITLE: <step_title>
+              ACTION: <step action>
+              INPUT: <step input>
+              OUTPUT: <step output>
+              NEXT: <next step>
 
-  architecture: |
-    - <list all archtecture requirements>
+    architecture: |
+      - <list all architecture requirements>
 
-  error_handling: |
-    - <list detail for error handling here>
+    error_handling: |
+      - <list detail for error handling here>
 
-  impl_requirements: |
-    - <list implmentation requirements here>
-  ```
+    impl_requirements: |
+      - <list implementation requirements here>
 
 prompt_elements:
   - [LITERAL, "The code filename stem shall be: [FILENAME_STEM]"] 

@@ -13,7 +13,7 @@ architecture: |
   - <arch2>
 
 code_requirements: |
-  - <list implmentation requirements here>
+  - <list implementation requirements here>
 
 test_enable: False
 

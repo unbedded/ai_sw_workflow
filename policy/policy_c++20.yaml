@@ -12,7 +12,8 @@ role_user: |
     - Prefer `std::vector`, `std::map`, and other STL containers over raw pointers.
 
   - Documentation:
-    - Comment the file header similary to python docstring.
+    - Include STEP_ACTION_TABLE step index 'STEP_%d' in comment for each step.
+    - Comment the file header similar to python docstring.
     - Document the file header with best practices, Include the current date as [DATE].
     - Include explanations in comments for all functions, methods, and important sections of code.
 
@@ -27,8 +28,8 @@ role_user: |
     - Include at end of CPP file a `main` function that tests the code that is commented out by default.
 
 prompt_elements:
-  - [LITTERAL, "The code filename stem shall be: [FILENAME_STEM]"] 
-  - [LITTERAL, "Add a comment to header with the filename and today's date."]
+  - [LITERAL, "The code filename stem shall be: [FILENAME_STEM]"] 
+  - [LITERAL, "Add a comment to header with the filename and today's date."]
   - ["requirements", "Use the following requirements to write code:"]
   - ["architecture", "Use the following architecture to implement code:"]
   - ["code_requirements", "Use these additional implementation requirements:"]

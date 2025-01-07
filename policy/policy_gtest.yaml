@@ -22,7 +22,7 @@ prompt_elements:
   - [LITERAL, "Unit Test code shall be saved in a file named: [TARGET_FNAME]"]
   - [LITERAL, "Target code to be tested comes from a file named: [CODE_FNAME]"]
   - ["requirements", "The code you are testing is based on the following requirements:"]
-  - ["test_requirements", "Use the following aditional test requirements:"]
+  - ["test_requirements", "Use the following additional test requirements:"]
 
 postfix_elements:
   - ["", ""]

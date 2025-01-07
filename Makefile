@@ -35,8 +35,8 @@ POLICY_DIR  = ./$(WORKFLOW_DIR)/policy
 POLICY_PSEUDO=$(POLICY_DIR)/policy_pseudo.yaml
 
 # Conditional variable to switch policies
-POLICY_MODE = c++20
-# POLICY_MODE = python3.8
+# POLICY_MODE = c++20
+POLICY_MODE = python3.8
 
 ifeq ($(POLICY_MODE), python3.8)
 CODE_SUFFIX   = _code.py
@@ -118,12 +118,12 @@ ifeq ($(POLICY_MODE), c++20)
 endif
 
 template:
-	@if [ "$(new_name)" = "" ]; then \
-		echo "Error: Please provide a new_name variable. Example: make template new_name=my_template"; \
+	@if [ "$(name)" = "" ]; then \
+		echo "Error: Please provide a name variable. Example: make template name=my_template"; \
 		exit 1; \
 	fi
-	cp -r ai_sw_workflow/template ./$(new_name)
-	mv ./$(new_name)/template_recipe.yaml ./$(new_name)/$(new_name)_recipe.yaml
+	cp -r ai_sw_workflow/template ./$(name)
+	mv ./$(name)/template_recipe.yaml ./$(name)/$(name)_recipe.yaml
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
@@ -132,6 +132,8 @@ clean:
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type f -name '*.out' -exec rm -f {} +	
 	find . -type f -name '*_code.hpp' -delete
+	find . -type f -name '*.log' -delete
+	
 # Display help message
 help:
 	@echo "Usage: make [target]"
@@ -142,6 +144,6 @@ help:
 	@echo "  test      - Runs the tests for the selected POLICY_MODE"
 	@echo "  clean     - Remove generated files and clean the environment"
 	@echo "  help      - Display this help message"
-	@echo "  template new_name=<name> " 
-	@echo "            - Copy ai_sw_workflow/template to ./<new_name> and rename template_recipe.yaml to <new_name>.yaml"
+	@echo "  template name=<name> " 
+	@echo "            - Copy ai_sw_workflow/template to ./<name> and rename template_recipe.yaml to <name>.yaml"
 

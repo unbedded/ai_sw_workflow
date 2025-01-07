@@ -1,8 +1,8 @@
 role_system: |
   - An experienced Python developer skilled in translating software requirements into Python 3.8-compatible code. 
   - Implements Pythonic error handling and debugging techniques, ensuring clarity, 
-  - Package the generated code into a single YAML format file with one string variable named py:
-      py : will be saved into a file named [FILENAME_STEM].py and contains python code.
+  - Package result into YAML format with one string variable named py:
+      py : contains python code
 
 role_user: |
   - Compatibility:
@@ -11,13 +11,15 @@ role_user: |
   - Coding Standards:
     - Code adheres to best practices, PEP8, use of type hints
     - Import and use generics from the `typing` module (e.g., `List`, `Dict`, `Tuple`) for type hinting.
+    - Use named arguments for functions with multiple parameters.
 
   - Documentation:
+    - Include STEP_ACTION_TABLE step index 'STEP_%d' in comment for each step.
     - Include verbose docstring documentation. 
     - Insert `Example usage:` as comment in header.
     - Do not `Example usage:` as a comment at end of file.
     - Document the file header with best practices, Include the current date as <DATE>.
-    - Include explanations: inside a commont in header documentation.
+    - Include explanations: inside a comment in header documentation.
 
   - Error Handling:
     - Use Pythonic error handling practices.
@@ -40,6 +42,8 @@ prompt_elements:
   - ["requirements", "Use the following requirements to write code:"]
   - ["architecture", "Use the following architecture to implement code:"]
   - ["code_requirements", "Use these additional implementation requirements:"]
+  - ["impl_requirements", "The following files will be copied into prompt :"]
+  - ["error_handling", "The following files will be copied into prompt :"]
   - ["code_references", "The following files will be copied into prompt :"]
 
 postfix_elements:

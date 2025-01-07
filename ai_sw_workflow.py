@@ -2,18 +2,18 @@
 The software development workflow comprises eleven steps, as illustrated in the accompanying diagram. Each section of this paper provides a detailed explanation of a specific step:
 
     1. **Pseudocode Template**  
-    2. **High-Level Requirements**  
+    2. **Recipe - High-Level Requirements**  
     3. **LLM API Interface**  
-    4. **High-Level to Low-Level Requirements Translation**  
-    5. **Low-Level Requirements** - For target applications involving the *LLM challenges* above, custom intervention will be required at step 5 to manually edit the *Low-Level Requirements*.
+    4. **Pseudocode Requirements Translation**  
+    5. **PSEUDO.code Requirements** - For target applications involving the *LLM challenges* above, custom intervention will be required at step 5 to manually edit the *Low-Level Requirements*.
     6. **Coding Policy**  
-    7. **Low-Level Requirements to Code Translation**  
+    7. **Coding Translation**  
     8. **Code Listing**  
     9. **Testing Policy**  
     10. **Code to Unit Test Translation**  
 
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
+│ 2.Recipe    ┼─►#4──►│5.PSEUDO.code┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
 └─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
             ╔═ #1 ╚═══════╗       ┌─────┼───────┐       ┌─────┼───────┐          
             ║PSEUDO C TMPL║       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -40,7 +40,7 @@ from datetime import datetime
 ENCODING = 'utf-8'
 FLOWDIAG_PSEUDO = """
 ┌─────────────┐ ╔═══╗ ┌─────────────┐       ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼──►#4─►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
+│ 2.Recipe    ┼──►#4─►│5.PSEUDO.code┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
 └─────────────┘ ╚═▲═╝ └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
             ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
             │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -48,7 +48,7 @@ FLOWDIAG_PSEUDO = """
 """
 FLOWDIAG_CODE = """
 ┌─────────────┐       ┌─────────────┐ ╔═══╗ ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼──►#7─►│   8.Code    ┼─►#10─►│11.uTest│
+│ 2.Recipe    ┼─►#4──►│5.PSEUDO.code┼──►#7─►│   8.Code    ┼─►#10─►│11.uTest│
 └─────────────┘   ▲   └─────────────┘ ╚═▲═╝ └─────────────┘   ▲   └────────┘
             ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
             │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -56,7 +56,7 @@ FLOWDIAG_CODE = """
 """
 FLOWDIAG_TEST = """
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐ ╔═══╗ ┌─────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTests│
+│ 2.Recipe    ┼─►#4──►│5.PSEUDO.code┼─►#7──►│   8.Code    ┼─►#10─►│11.uTests│
 └─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘ ╚═▲═╝ └─────────┘
             ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
             │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -282,6 +282,42 @@ class LlmClient:
     def comment_block(self, comment: str) -> str:
         return f"{self.COMMENT_PREFIX} {comment} {self.COMMENT_POSTFIX}"
 
+    def add_file_references(self, references_str: str) -> None:
+        """
+        Processes file references from the recipe and appends them to the prompt.
+
+        Args:
+            recipe (dict): A dictionary containing the recipe with possible file references.
+        """
+        # references_str = recipe[key]
+        # references_str = recipe[self.CODE_REF]
+        references = [
+            line.lstrip("- ").strip()
+            for line in references_str.splitlines()
+            if line.strip()
+        ]
+
+        for ref_fname in references:
+            target_base = Path(ref_fname)
+            for suffix in self.TARGET_SUFFIXS:
+                target_path = target_base.with_suffix(f".{suffix}")
+                module = str(target_path).split('/')[0]
+                fname = str(target_path).split('/')[1]
+                cmd = (
+                    f"Use the following code as instructions to understand how to use the code: {target_path}.\n"
+                    f"The code file named {fname} from the subdirectory {module}:\n"
+                )
+                try:
+                    with open(target_path, 'r', encoding=self.ENCODING) as file:
+                        reference = file.read()
+                    self.prompt.append_prompt(
+                        cmd + "\n```\n" + reference + "\n```\n"
+                    )
+                except FileNotFoundError:
+                    print(f"File not found: {target_path}")
+                except Exception as e:
+                    print(f"Error reading file {target_path}: {e}")
+
     def create_prompt(self, prompt: PromptManager, xform_type: XformType, 
                        recipe_fname: str, code_fname: str) -> None:
         """
@@ -315,20 +351,7 @@ class LlmClient:
 
                     # ADD FILE REFERENCES - the whole file
                     elif key == self.CODE_REF and key in recipe:
-                        references_str = recipe[key]
-                        references = [line.lstrip("- ").strip() for line in references_str.splitlines() if line.strip()]
-                        for ref_fname in references:
-                            target_base = Path(ref_fname)
-                            for suffix in self.TARGET_SUFFIXS:
-                                suffix = "." + suffix
-                                target_path = target_base.with_suffix(suffix)
-                                module = str(target_path).split('/')[0]
-                                fname  = str(target_path).split('/')[1]
-                                cmd = (f"Use the following code as instructions to understand how to use the C++ code: {target_path}.\n"
-                                        f"The code code file named {fname} from the subdirectory {module} :\n")
-                                with open(target_path, 'r', encoding=ENCODING) as file:
-                                    reference = file.read()
-                                prompt.append_prompt(cmd + "\n```\n" + reference + "\n```\n")
+                        self.add_file_references(recipe[key])
 
             # INCLUDE CODE - to be tested
             if xform_type is XformType.TEST:
@@ -353,35 +376,25 @@ class LlmClient:
             )
             raise
 
-# for rule in rules:
-#     if type(rule) is not str :
-    #    print(f"{rule} type {type(rule)}")
-        # msg = f"Invalid type for {self.PROMPT_ELEMENTS} - key: {key} in {policy_fname}."
-        # print(msg)
-        # raise ValueError(msg)
-    # if rule not in [self.LITTERAL, self.CODE_REF, self.PROMPT_ELEMENTS]:
-    #     msg = f"Invalid key in {recipe_fname}: {rule}."
-    #     print(msg)
-    #     raise ValueError(msg)
-# for key, prefix in prompt_elements:
-
-
-    def process_response(self, response: str, recipe_fname: str) -> str:
+    def process_response_to_yaml(self, response: str, recipe_fname: str) -> str:
         """
         Post-process the response
         Args:
-            response (str): The response to be processed.
-            xform_type (XformType): The type of transformation to be applied.
-            recipe_fname (str): The name of the source file.
+            response (str): The response to be processed. It should be a non-empty string.
+            xform_type (XformType): The type of transformation to be applied. This determines how the response will be processed.
+            recipe_fname (str): The name of the source file from which the response was generated.
         Raises:
-            Exception: If an error occurs during file processing - or if response is empty.
-        """        
+            Exception: If an error occurs during file processing or if the response is empty.
+        Returns:
+            str: The processed response after applying the specified transformation.
+        """
         try:
             # EXTRACT YAML from response
             response = re.sub(r'^.*?```yaml\n', '', response, flags=re.DOTALL)
-            response = re.sub(r'```.*$',        '', response, flags=re.DOTALL)
-
-            # ADD LITERAL values (which are prefixed with underscore)
+            #find the last occurrence of the triple single quotes (''') in a string and remove everything after it,
+            # you can use a regular expression with a negative lookahead to ensure it matches the last occurrence.
+            response = re.sub(r"```(?!.*```).*$", "", response, flags=re.DOTALL)
+            # ADD PROMPT ELEMENTS
             literals = "\n"
             prompt_elements = self.POSTFIX_ELEMENTS
             with open(recipe_fname, "r", encoding=ENCODING) as file:
@@ -391,10 +404,10 @@ class LlmClient:
                         if key in recipe:
                             content = recipe[key]
                             if isinstance(content, bool):
-                                literals += f"\n{key}: {content}"
+                                literals += f"\n  {key}: {content}"
                             else:
-                                literals += f"\n{key}: |\n"
-                                literals += "\n".join([f"  {line}" for line in content.splitlines()])
+                                literals += f"\n  {key}: |\n"
+                                literals += "\n".join([f"    {line}" for line in content.splitlines()])
                                 literals += "\n"
             return response + literals
 
@@ -428,7 +441,7 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
 
         # POST PROCESS RESPONSE
-        response_processed = client.process_response(response, recipe_fname=recipe_fname)
+        response_yaml = client.process_response_to_yaml(response, recipe_fname=recipe_fname)
         token_usage = f"TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
         header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
         header += client.comment_block(f"policy: {policy_fname}") + "\n"
@@ -436,16 +449,13 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         header += client.comment_block(f"dest: {dest_fname}") + "\n"
         print(f"{dest_fname} -> {token_usage}")
 
-        if xform_type is XformType.PSEUDO:
-            with open(dest_fname, 'w', encoding=ENCODING) as file:
-                file.write(header + response_processed)
-        else:
-            target_base = Path(dest_fname)
-            response_yaml = yaml.safe_load(response_processed)
-            for key, target in response_yaml.items():
-                target_path = target_base.with_suffix("." + key)
-                with open(target_path, 'w', encoding=ENCODING) as file:
-                    file.write(header + target)
+        # SAVE EACH KEY - to unique file
+        target_base = Path(dest_fname)
+        content_yaml = yaml.safe_load(response_yaml)
+        for key, content in content_yaml.items():
+            target_path = target_base.with_suffix("." + key)
+            with open(target_path, 'w', encoding=ENCODING) as file:
+                file.write(header + content)
 
     except Exception as e:
         e_msg = f"An error occurred while processing files:\n  Input files: {policy_fname}\n  Output file: {code_fname}\n  Error details: {e}"
@@ -485,17 +495,7 @@ if __name__ == "__main__":
 ###########################################################################
 # TODO - Policy cleanup - less verbose - more specific
 # TODO - fix fibinacci test - infinite loop  [ RUN      ] FibonacciTest.ThrowsInvalidArgumentForNegativeIndex
-# - README - how to setup 
 
 ### MAKEFILE
-# TODO - make gtest as its own rule
 # TODO - Trigger builld if RECIPE changes - %$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(CODE_SUFFIX)
-# TODO _ how to run tests w/ "make test"
-
-
-#
-
-#### TESTING
-
-###############  DONE
 
