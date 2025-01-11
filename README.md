@@ -8,8 +8,11 @@
 </div>
 
 # Abstract
-Current AI-assisted coding tools primarily focus on isolated tasks within the software development lifecycle, such as writing, testing, and reviewing code. This fragmented approach limits their effectiveness and fails to provide a comprehensive solution that integrates all stages of development.
-This paper introduces an end-to-end AI-assisted software development workflow that automates the entire process—from high-level requirements to detailed design, code generation, and automated unit testing. The proposed workflow ensures well-documented artifacts at every stage while allowing for user intervention when necessary. This approach addresses the limitations of current AI coding assistants, which often operate only at isolated stages of software development.
+Current AI-assisted coding tools focus on isolated tasks within the software development lifecycle, such as code writing, testing, and review. This fragmented approach limits their effectiveness and fails to provide a cohesive solution that integrates all stages of development.
+
+This paper introduces an end-to-end AI-assisted software development workflow that spans the entire lifecycle—from high-level requirements through detailed design, code generation, and automated unit testing. The workflow emphasizes well-documented artifacts at every stage while supporting user intervention when needed. By addressing the limitations of existing AI tools, this approach enables a holistic and efficient development process.
+
+Central to this workflow is the adoption of Test-Driven Development (TDD). Unlike conventional AI systems marketed for rapid prototyping, this approach incorporates benchmark policies and unit tests to deliver production-quality code. High-level requirements are validated against unit tests, which in turn verify the target software. Generative AI accelerates both unit test creation and code implementation, ensuring consistency and reliability. Furthermore, the workflow’s capacity for reflection and self-refinement promises significant potential for iterative improvement in future software development. 
 
 The diagram above leverages the Model-Based Systems Engineering (MBSE) V-Diagram and shows the necessary artifacts to support the full-cycle workflow proposed by this paper.
 
@@ -20,9 +23,34 @@ The template command creates a recipe template fibonacci/fibonacci_recipe.yaml
 mkdir aiproject
 cd aiproject
 git clone git@github.com:unbedded/ai_sw_workflow.git
-cp ai_sw_workflow/Makefile ../
+cp ai_sw_workflow/Makefile ./
 make template new_name=fibonacci
 ```
+Your directory structure will now look like this. The template command will copy the template directory to your cwd and rename it as 'fibonacci`
+```
+├── Makefile
+│── fibonacci
+│   ├── __init__.py
+│   └── fibonacci_recipe.yaml
+│
+├── ai_sw_workflow
+│   ├── ai_sw_workflow.py
+│   ├── argument_parser.py
+│   ├── Makefile
+│   ├── policy
+│   │   ├── policy_c++20.yaml
+│   │   ├── policy_gtest.yaml
+│   │   ├── policy_pseudo.yaml
+│   │   ├── policy_pytest.yaml
+│   │   └── policy_python3.8.yaml
+│   ├── README.md
+│   ├── requirements.txt
+│   └── template
+│       ├── __init__.py
+│       └── template_recipe.yaml
+
+```
+
 ### OPENAI_API_KEY
 Create an OpenAI API account and store the API key in an environment variable. 
 ```

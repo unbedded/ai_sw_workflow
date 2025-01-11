@@ -51,4 +51,5 @@ postfix_elements:
 
 comment_prefix: "#"
 comment_postfix: ""
+testing_target_suffixs: ["py"]
 

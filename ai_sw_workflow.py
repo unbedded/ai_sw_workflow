@@ -282,15 +282,13 @@ class LlmClient:
     def comment_block(self, comment: str) -> str:
         return f"{self.COMMENT_PREFIX} {comment} {self.COMMENT_POSTFIX}"
 
-    def add_file_references(self, references_str: str) -> None:
+    def add_file_references(self, prompt: PromptManager, references_str: str) -> None:
         """
         Processes file references from the recipe and appends them to the prompt.
 
         Args:
             recipe (dict): A dictionary containing the recipe with possible file references.
         """
-        # references_str = recipe[key]
-        # references_str = recipe[self.CODE_REF]
         references = [
             line.lstrip("- ").strip()
             for line in references_str.splitlines()
@@ -301,22 +299,25 @@ class LlmClient:
             target_base = Path(ref_fname)
             for suffix in self.TARGET_SUFFIXS:
                 target_path = target_base.with_suffix(f".{suffix}")
-                module = str(target_path).split('/')[0]
-                fname = str(target_path).split('/')[1]
+                directory_path = os.path.dirname(target_path)
+                file_name = os.path.basename(target_path)
                 cmd = (
                     f"Use the following code as instructions to understand how to use the code: {target_path}.\n"
-                    f"The code file named {fname} from the subdirectory {module}:\n"
+                    f"The code file named {file_name} from the subdirectory {directory_path}:\n"
                 )
                 try:
-                    with open(target_path, 'r', encoding=self.ENCODING) as file:
+                    with open(target_path, 'r', encoding=ENCODING) as file:
                         reference = file.read()
-                    self.prompt.append_prompt(
+                    reference = self.strip_comments_python(reference)    
+                    prompt.append_prompt(
                         cmd + "\n```\n" + reference + "\n```\n"
                     )
                 except FileNotFoundError:
                     print(f"File not found: {target_path}")
+                    raise
                 except Exception as e:
                     print(f"Error reading file {target_path}: {e}")
+                    raise
 
     def create_prompt(self, prompt: PromptManager, xform_type: XformType, 
                        recipe_fname: str, code_fname: str) -> None:
@@ -345,13 +346,13 @@ class LlmClient:
                     if key == self.LITERAL:
                         prompt.append_prompt(prefix)
 
+                    # ADD FILE REFERENCES - the whole file
+                    elif key == self.CODE_REF and key in recipe:
+                        self.add_file_references(prompt, recipe[key])
+
                     # ADD RECIPE ELEMENT - direct copy over from recipe
                     elif key in recipe:
                         prompt.append_prompt(prefix + "\n" + recipe[key])
-
-                    # ADD FILE REFERENCES - the whole file
-                    elif key == self.CODE_REF and key in recipe:
-                        self.add_file_references(recipe[key])
 
             # INCLUDE CODE - to be tested
             if xform_type is XformType.TEST:
