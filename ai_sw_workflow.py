@@ -28,7 +28,7 @@ import os
 import threading
 import time
 import re
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Iterable
 from datetime import datetime
 from argument_parser import ArgumentParser, XformType
 from pathlib import Path
@@ -131,6 +131,19 @@ class PromptManager:
         prompt += self.user_list
         return prompt
     
+    def prompt_fname(self, target: str) -> str:
+        # CREATE PROMPT FILE NAME (.md)
+        prompt_fname = Path(target).with_suffix(".md")
+        prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
+        return prompt_fname
+
+    def prompt_delete(self, target):
+        prompt_fname = self.prompt_fname( target)
+        if os.path.exists(target) :
+            os.remove(target)
+        if os.path.exists(prompt_fname):
+            os.remove(prompt_fname)
+
     def prompt_compare_with_save(self, xform_type: XformType, target: str) -> bool:
         """
         Compares the content of a file to a given string, ignoring all whitespace differences.
@@ -141,12 +154,6 @@ class PromptManager:
         :return: True if the file content matches the string ignoring whitespace; False otherwise.
         """
         try:
-
-            # CREATE PROMPT FILE NAME (.md)
-            prompt: List[Dict[str, str]] = self.get_prompt()
-            prompt_fname = Path(target).with_suffix(".md")
-            prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
-
             # CREATE HEADER/TITLE
             for xform, title_text, diagram_value in self.xform_mappings:
                 if xform_type is xform or xform is None:
@@ -156,6 +163,7 @@ class PromptManager:
             prompt_text  = [f"# {title}\n\n"] + ["````\n"+ diagram + "````\n"]
 
             # APPEND PROMPT ITEMS - w/ markdown formatting
+            prompt: List[Dict[str, str]] = self.get_prompt()
             for item in prompt:
                 role = item["role"].capitalize()
                 content = "\n".join(line for line in item["content"].strip().splitlines() if line.strip())
@@ -163,6 +171,7 @@ class PromptManager:
             prompt_text = "\n".join(prompt_text)
 
             # COMPARE PROMPTS
+            prompt_fname = self.prompt_fname( target)
             is_exist = os.path.exists(target) # True if file exists
             is_match = False
             if is_exist and os.path.exists(prompt_fname):
@@ -180,7 +189,9 @@ class PromptManager:
 
         except Exception as e:
             print(f"An error occurred while comparing and saving the prompt: {e}")
-            return False
+            self.prompt_delete(target)
+            raise
+
 
 class LlmManager:
     """
@@ -352,7 +363,11 @@ class LlmClient:
 
                     # ADD RECIPE ELEMENT - direct copy over from recipe
                     elif key in recipe:
-                        prompt.append_prompt(prefix + "\n" + recipe[key])
+                        if isinstance(recipe[key], Iterable) and not isinstance(recipe[key], (str, bytes)):
+                            content = "\n".join(recipe[key] )  
+                        else:
+                            content = recipe[key]
+                        prompt.append_prompt(prefix + "\n" + content)
 
             # INCLUDE CODE - to be tested
             if xform_type is XformType.TEST:
@@ -377,7 +392,7 @@ class LlmClient:
             )
             raise
 
-    def process_response_to_yaml(self, response: str, recipe_fname: str) -> str:
+    def process_response_to_yaml(self, response: str, recipe_fname: str, target: str) -> str:
         """
         Post-process the response
         Args:
@@ -403,7 +418,10 @@ class LlmClient:
                 if prompt_elements is not None:
                     for key, _ in prompt_elements:
                         if key in recipe:
-                            content = recipe[key]
+                            if isinstance(recipe[key], Iterable) and not isinstance(recipe[key], (str, bytes)):
+                                content = "\n".join(recipe[key])
+                            else:
+                                content = recipe[key]
                             if isinstance(content, bool):
                                 literals += f"\n  {key}: {content}"
                             else:
@@ -421,9 +439,9 @@ class LlmClient:
 
 def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname: str, 
                xform_type: XformType, temperature: float, max_tokens: int, model: str) -> None:
+    prompt = PromptManager()
     try:
         # CREATE LLM PROMPT
-        prompt = PromptManager()
         client = LlmClient(policy_fname=policy_fname, code_fname=code_fname)
         filename_stem = Path(dest_fname).stem
         prompt.add_variable("DATE", datetime.now().strftime("%Y-%m-%d"))
@@ -440,27 +458,30 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         # PROCESS LLM PROMPT
         llm_mgr = LlmManager(temperature=temperature, max_tokens=max_tokens, model=model)
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
+        if response is not None:
+            # POST PROCESS RESPONSE
+            response_yaml = client.process_response_to_yaml(response, recipe_fname=recipe_fname, target = dest_fname)
+            token_usage = f"TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
+            header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
+            header += client.comment_block(f"policy: {policy_fname}") + "\n"
+            header += client.comment_block(f"code: {code_fname}") + "\n"
+            header += client.comment_block(f"dest: {dest_fname}") + "\n"
+            print(f"{dest_fname} -> {token_usage}")
 
-        # POST PROCESS RESPONSE
-        response_yaml = client.process_response_to_yaml(response, recipe_fname=recipe_fname)
-        token_usage = f"TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
-        header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
-        header += client.comment_block(f"policy: {policy_fname}") + "\n"
-        header += client.comment_block(f"code: {code_fname}") + "\n"
-        header += client.comment_block(f"dest: {dest_fname}") + "\n"
-        print(f"{dest_fname} -> {token_usage}")
-
-        # SAVE EACH KEY - to unique file
-        target_base = Path(dest_fname)
-        content_yaml = yaml.safe_load(response_yaml)
-        for key, content in content_yaml.items():
-            target_path = target_base.with_suffix("." + key)
-            with open(target_path, 'w', encoding=ENCODING) as file:
-                file.write(header + content)
+            # SAVE EACH KEY - to unique file
+            target_base = Path(dest_fname)
+            content_yaml = yaml.safe_load(response_yaml)
+            for key, content in content_yaml.items():
+                target_path = target_base.with_suffix("." + key)
+                with open(target_path, 'w', encoding=ENCODING) as file:
+                    file.write(header + content)
+        else:
+            prompt.prompt_delete(dest_fname)
 
     except Exception as e:
         e_msg = f"An error occurred while processing files:\n  Input files: {policy_fname}\n  Output file: {code_fname}\n  Error details: {e}"
         print(f"ERROR THROWN {e_msg}")
+        prompt.prompt_delete(dest_fname)
         raise
 
 
@@ -499,4 +520,5 @@ if __name__ == "__main__":
 
 ### MAKEFILE
 # TODO - Trigger builld if RECIPE changes - %$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(CODE_SUFFIX)
-
+# TODO - if GPT prompt fails (i.e. timeout) - make is broken until you manually fix it delete stale target file..  
+#          just delete prompt?             

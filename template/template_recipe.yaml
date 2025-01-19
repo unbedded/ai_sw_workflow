@@ -20,5 +20,4 @@ test_enable: False
 test_requirements: |
   - <list any special tests>    
 
-code_references: |
-  - <list files to reference>  
+

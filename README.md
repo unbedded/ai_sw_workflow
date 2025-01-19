@@ -10,9 +10,16 @@
 # Abstract
 Current AI-assisted coding tools focus on isolated tasks within the software development lifecycle, such as code writing, testing, and review. This fragmented approach limits their effectiveness and fails to provide a cohesive solution that integrates all stages of development.
 
-This paper introduces an end-to-end AI-assisted software development workflow that spans the entire lifecycle—from high-level requirements through detailed design, code generation, and automated unit testing. The workflow emphasizes well-documented artifacts at every stage while supporting user intervention when needed. By addressing the limitations of existing AI tools, this approach enables a holistic and efficient development process.
+This paper introduces an end-to-end AI-assisted software development workflow that spans the entire lifecycle—from high-level requirements through detailed design, code generation, and automated unit testing. The workflow emphasizes well-documented artifacts at each stage while supporting user intervention when needed. By addressing the limitations of existing AI tools, this approach enables a holistic and efficient development process. Key features of this workflow are:
 
-Central to this workflow is the adoption of Test-Driven Development (TDD). Unlike conventional AI systems marketed for rapid prototyping, this approach incorporates benchmark policies and unit tests to deliver production-quality code. High-level requirements are validated against unit tests, which in turn verify the target software. Generative AI accelerates both unit test creation and code implementation, ensuring consistency and reliability. Furthermore, the workflow’s capacity for reflection and self-refinement promises significant potential for iterative improvement in future software development. 
+ - Switching from an iterative refinement to a template based prompt documents high level requirements in a concise separation of concerns (objective / architecture / impl details / test)
+ - A Coding-Policy is appended to your prompt enables developers to focus on your requirements and not the impl details
+ - Concurrent code and test generation provides regulation from the hallucinations and randomness of Generative AI
+ - A Testing-Policy appended to your test specification enables higher quality tests while developer focus on validation
+ - Saving the prompt as a development source artifact - allows for reuse and derivative future works.
+ - Project/Department policies become not just guidelines in the cloud but part of the development environment code generation.
+
+Central to this workflow is the adoption of Test-Driven Development (TDD). Unlike conventional AI systems marketed for rapid prototyping, this approach incorporates benchmark policies and unit tests to deliver production-quality code. High-level requirements are validated against unit tests, which in turn verify the target software. Generative AI accelerates both unit test creation and code implementation, ensuring consistency and reliability. Furthermore, the workflow’s capacity for reflection and self-refinement promises significant potential for iterative improvement in future framework improvements.
 
 The diagram above leverages the Model-Based Systems Engineering (MBSE) V-Diagram and shows the necessary artifacts to support the full-cycle workflow proposed by this paper.
 

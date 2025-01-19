@@ -8,6 +8,11 @@
 #                                                             
 ############################################################################
 
+# Set default parallel jobs 
+NPROC := 3
+XPROC := $(shell echo $$(( $(shell nproc) < $(NPROC) ? $(shell nproc) : $(NPROC) )))
+MAKEFLAGS += -j$(XPROC)
+
 # Variables
 VENV_DIR = .venv
 WORKFLOW_DIR = ai_sw_workflow
@@ -74,9 +79,11 @@ DESTINATIONS = $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS) $(SUBDI
 			#    $(BASEDIR_PTEST_DESTINATIONS)
 
 .PRECIOUS: $(DESTINATIONS)
-.PHONY:  setup template test clean help count_lines  subdirs base 
+.PHONY:  setup template test clean help count_lines  subdirs base rm_cfg
 
-all: subdirs base test count_lines
+all: subdirs base rm_cfg
+
+# count_lines test
 
 subdirs: $(SUBDIR_PSEUDO_DESTINATIONS) $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS)
 
@@ -106,7 +113,7 @@ count_lines:
 	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
 # Rule to generate _code.py from _pseudo.md
-%$(CODE_SUFFIX): %$(PSEUDO_SUFFIX)
+%$(CODE_SUFFIX): %$(PSEUDO_SUFFIX) %$(RECIPE_SUFFIX)
 	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
 
 # Rule to generate _test.cpp from _code.cpp
@@ -125,6 +132,9 @@ template:
 	cp -r ai_sw_workflow/template ./$(name)
 	mv ./$(name)/template_recipe.yaml ./$(name)/$(name)_recipe.yaml
 
+rm_cfg:
+	rm -f morse_cfg.yaml
+
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	rm -rfv  $(DESTINATIONS)
@@ -133,7 +143,8 @@ clean:
 	find . -type f -name '*.out' -exec rm -f {} +	
 	find . -type f -name '*_code.hpp' -delete
 	find . -type f -name '*.log' -delete
-	
+	rm_cfg
+
 # Display help message
 help:
 	@echo "Usage: make [target]"
