@@ -9,7 +9,7 @@
 ############################################################################
 
 # Set default parallel jobs 
-NPROC := 3
+NPROC := 1
 XPROC := $(shell echo $$(( $(shell nproc) < $(NPROC) ? $(shell nproc) : $(NPROC) )))
 MAKEFLAGS += -j$(XPROC)
 
@@ -19,9 +19,6 @@ WORKFLOW_DIR = ai_sw_workflow
 PYTHON = $(VENV_DIR)/bin/python
 PIP = $(VENV_DIR)/bin/pip
 MODEL = 'gpt-4o'
-# MODEL = 'gpt-4o-mini'
-# MODEL = 'o1-mini'
-# MODEL = "gpt-3.5-turbo"
 MAX_TOKENS = 8000
 TEMPERATURE = 0.1
 MAIN_SCRIPT = $(WORKFLOW_DIR)/ai_sw_workflow.py -m=$(MAX_TOKENS) -t=$(TEMPERATURE) --model=$(MODEL)
@@ -55,40 +52,45 @@ POLICY_CODE = $(POLICY_DIR)/policy_c++20.yaml
 POLICY_TEST= $(POLICY_DIR)/policy_gtest.yaml
 endif
 
-# Find all source files in subdirectories with the specified postfixes
-EXCLUDE_SOURCES = -path "./$(WORKFLOW_DIR)/*" -prune
-SUBDIR_REQ_SOURCES = $(shell find . -mindepth 2 -type f -name "*$(RECIPE_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
-BASEDIR_REQ_SOURCES = $(shell find . -mindepth 1 -maxdepth 1 -type f -name "*$(RECIPE_SUFFIX)" -not \( $(EXCLUDE_SOURCES) \))
-GTEST_SOURCES := $(shell find . -type f -name '*_test.cpp')
-GTEST_EXECUTABLES := $(patsubst %.cpp, %.out, $(GTEST_SOURCES))
+# Find all source files up to 4 levels deep (excluding workflow directory)
+RECIPE_SOURCES = $(shell find . -mindepth 1 -maxdepth 3 -type f -name "*$(RECIPE_SUFFIX)" ! -path "./$(WORKFLOW_DIR)/*")
 
-# Generate corresponding destination file names
-SUBDIR_PSEUDO_DESTINATIONS = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
-SUBDIR_PCODE_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
-SUBDIR_PTEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
-SUBDIR_TEST_DESTINATIONS  = $(SUBDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX:.cpp=))
-
-BASEDIR_PSEUDO_DESTINATIONS = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
-BASEDIR_PCODE_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
-# BASEDIR_PTEST_DESTINATIONS  = $(BASEDIR_REQ_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
+# Generate corresponding destination file names dynamically
+PSEUDO_DESTINATIONS = $(RECIPE_SOURCES:$(RECIPE_SUFFIX)=$(PSEUDO_SUFFIX))
+CODE_DESTINATIONS   = $(RECIPE_SOURCES:$(RECIPE_SUFFIX)=$(CODE_SUFFIX))
+TEST_DESTINATIONS   = $(RECIPE_SOURCES:$(RECIPE_SUFFIX)=$(TEST_SUFFIX))
 
 # Combine all destinations
-DESTINATIONS = $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS) $(SUBDIR_PSEUDO_DESTINATIONS) \
-               $(BASEDIR_PCODE_DESTINATIONS)  $(BASEDIR_PSEUDO_DESTINATIONS) \
-			   $(SUBDIR_TEST_DESTINATIONS)
-			#    $(BASEDIR_PTEST_DESTINATIONS)
+DESTINATIONS = $(PSEUDO_DESTINATIONS) $(CODE_DESTINATIONS) $(TEST_DESTINATIONS)
 
 .PRECIOUS: $(DESTINATIONS)
-.PHONY:  setup template test clean help count_lines  subdirs base rm_cfg
+.PHONY: all process_files clean test count_lines template rm_cfg
 
-all: subdirs base rm_cfg
+# Entry point
+all: process_files rm_cfg
 
-# count_lines test
+# Process files in depth-first order
+process_files: $(DESTINATIONS)
 
-subdirs: $(SUBDIR_PSEUDO_DESTINATIONS) $(SUBDIR_PCODE_DESTINATIONS) $(SUBDIR_PTEST_DESTINATIONS)
+# Depth-first processing rules
+%$(PSEUDO_SUFFIX): %$(RECIPE_SUFFIX)
+#	@echo "Generating: $@ from $<"
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
-base: subdirs $(BASEDIR_PSEUDO_DESTINATIONS) $(BASEDIR_PCODE_DESTINATIONS) $(BASEDIR_PTEST_DESTINATIONS)
+%$(CODE_SUFFIX): %$(PSEUDO_SUFFIX) %$(RECIPE_SUFFIX)
+#	@echo "Generating: $@ from $<"
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code --policy $(POLICY_CODE) --code $@
 
+%$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(RECIPE_SUFFIX)
+#	@echo "Generating: $@ from $<"
+	@$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@ --xform test --policy $(POLICY_TEST) --code $<
+
+ifeq ($(POLICY_MODE), c++20)
+	$(CXX) $(CXXFLAGS) -L$(GTEST_LIB) $@ $< $(LDFLAGS) -o $(@:.cpp=)
+	$(@:.cpp=)
+endif
+
+# Test execution
 test:
 ifeq ($(POLICY_MODE), python3.8)
 	coverage run -m pytest --tb=line | grep -vE "^(platform|rootdir|plugins|collected)"
@@ -100,30 +102,16 @@ else ifeq ($(POLICY_MODE), c++20)
 	done
 endif
 
+# Count lines of Python and YAML code
 count_lines:
 	@echo "Counting lines of Python code and YAML files..."
-	@python_lines=$$(find . -type f -name "*_xform.py" ! -name "*_test.py" ! -path "*/__pycache__/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
-	test_lines=$$(find . -type f -name "*_test.py" ! -path "*/__pycache__/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
-	yaml_lines=$$(find . -type f -name "*.yaml" ! -path "./policy/*" ! -path "./.cache/*" ! -path "./.git/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); 	total_lines=$$(($$python_lines + $$test_lines + $$yaml_lines)); \
+	@python_lines=$$(find . -type f -name "*_xform.py" ! -name "*_test.py" ! -path "*/__pycache__/*" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
+	test_lines=$$(find . -type f -name "*_test.py" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
+	yaml_lines=$$(find . -type f -name "*.yaml" -exec wc -l {} + | awk '{total += $$1} END {print total}'); \
 	total_lines=$$(($$python_lines + $$test_lines + $$yaml_lines)); \
-	echo "TOTAL LINES: $$total_lines = Code: $$python_lines + Test: $$test_lines (YAML: $$yaml_lines)"
+	echo "TOTAL LINES: $$total_lines = Code: $$python_lines + Test: $$test_lines + YAML: $$yaml_lines"
 
-# Rule to generate _pseudo.md from _req.md
-%$(PSEUDO_SUFFIX): %$(RECIPE_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
-
-# Rule to generate _code.py from _pseudo.md
-%$(CODE_SUFFIX): %$(PSEUDO_SUFFIX) %$(RECIPE_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code   --policy $(POLICY_CODE)  --code $@
-
-# Rule to generate _test.cpp from _code.cpp
-%$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(RECIPE_SUFFIX)
-	@$(PYTHON) $(MAIN_SCRIPT) --recipe $(word 2,$^) --dest $@ --xform test --policy $(POLICY_TEST) --code $<
-ifeq ($(POLICY_MODE), c++20)
-	$(CXX) $(CXXFLAGS) -L$(GTEST_LIB) $@ $< $(LDFLAGS) -o $(@:.cpp=)
-	$(@:.cpp=)
-endif
-
+# Template generation
 template:
 	@if [ "$(name)" = "" ]; then \
 		echo "Error: Please provide a name variable. Example: make template name=my_template"; \
@@ -132,12 +120,13 @@ template:
 	cp -r ai_sw_workflow/template ./$(name)
 	mv ./$(name)/template_recipe.yaml ./$(name)/$(name)_recipe.yaml
 
+# Cleanup rules
 rm_cfg:
 	rm -f morse_cfg.yaml
 
 clean:
 	find . -type d -name "__pycache__" -exec rm -rf {} +
-	rm -rfv  $(DESTINATIONS)
+	rm -rf $(DESTINATIONS)
 	find . -type f -name ".prompt_*" -exec rm -f {} +
 	find . -type d -name ".pytest_cache" -exec rm -rf {} +
 	find . -type f -name '*.out' -exec rm -f {} +	
@@ -150,11 +139,9 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Targets:"
-	@echo "  all       - Set up the environment and run the script if needed"
-	@echo "  setup     - Create a virtual environment and install dependencies"
-	@echo "  test      - Runs the tests for the selected POLICY_MODE"
-	@echo "  clean     - Remove generated files and clean the environment"
-	@echo "  help      - Display this help message"
-	@echo "  template name=<name> " 
-	@echo "            - Copy ai_sw_workflow/template to ./<name> and rename template_recipe.yaml to <name>.yaml"
+	@echo "  all       - Process files and clean configuration"
+	@echo "  process_files - Process all required files recursively"
+	@echo "  test      - Run tests based on selected POLICY_MODE"
+	@echo "  clean     - Remove generated files and clean environment"
+	@echo "  template name=<name> - Create a new template"
 

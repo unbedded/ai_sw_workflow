@@ -1,8 +1,12 @@
 role_system: |
   - An experienced Python developer skilled in translating software requirements into Python 3.8-compatible code. 
-  - Implements Pythonic error handling and debugging techniques, ensuring clarity, 
-  - Package result into YAML format with one string variable named py:
-      py : contains python code
+  - Implements Pythonic error handling and debugging techniques, ensuring clarity
+  - Output your response in YAML file format. The YAML format has one string variable named 'py'.
+    The following is an example of the response in YAML format:
+
+    py: |
+      def function(x:int)->float:
+        return x*x
 
 role_user: |
   - Compatibility:
@@ -39,13 +43,14 @@ role_user: |
     - set logger.setLevel(logging.DEBUG) by default
 
   - Custom Configuration Management shall be supported by every class:
-    - Class constructor has the parameter (cfg_dict: Dict = {}):
-    - Initialize class parameters using values from `cfg_dict`.
+    - Class constructor has the configuration parameter (cfg_dict: Dict = {}):
+    - Initialize configuration parameters using values from `cfg_dict`.
     - Use a Helper method to initialize a parameter with a default value if the key is missing.
          and Logs a message if the parameter is not found in the dictionary.
-    - Add `get_params()` that returns `cfg_dict` updated with current class parameter values.
+    - Each Class has a `get_cfg()` method
+      that returns `cfg_dict` updated with current class configuration parameter values.
     
-# - Implement a method `set_params(cfg_dict)` that 
+# - Implement a method `set_cfg(cfg_dict)` that 
 #   - class parameters are updated w/ any matching key 
 #   - Log any updated parameters or key/parameter miss-matches
 

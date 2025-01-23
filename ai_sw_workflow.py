@@ -198,10 +198,11 @@ class LlmManager:
     A class to manage a list of prompts for the OpenAI API.
     """
     MODEL_KEY_ENV_VARIABLE = "OPENAI_API_KEY"
-    def __init__(self, temperature=0.1, max_tokens=4000, model='gpt-4o'):
+    def __init__(self, temperature=0.1, max_tokens=4000, model='gpt-4o', target = "unnown"):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model = model
+        self.target = target
         api_key = os.getenv(self.MODEL_KEY_ENV_VARIABLE)
         if not api_key:
             raise EnvironmentError(
@@ -213,10 +214,13 @@ class LlmManager:
     def _show_progress(self) -> None:
         """Print a period every second to indicate progress, with a counter."""
         self.running = True
-        seconds = 0
+        self.seconds = 0
         while self.running:
-            seconds += 1
-            print(f"\r{seconds:>3} {'.' * seconds}", end="", flush=True)
+            self.seconds += 1
+            n_tabs = 5 - (self.seconds+4) // 8
+            tab = '\t'
+            print(f"\t\r{self.seconds:>3}{'.' * self.seconds} {tab * n_tabs}{self.target}", 
+                  end="", flush=True)
             time.sleep(1)
 
     def process_chat(self, prompt) -> Tuple[Optional[str], Tuple[int, int, str]]:
@@ -236,6 +240,7 @@ class LlmManager:
                 self.running = False
                 if self._progress_thread:
                     self._progress_thread.join()
+            print(f"\t\r{self.seconds:>3}", end="", flush=True)
             usage = getattr(response, 'usage', None)
             if usage:
                 return response.choices[0].message.content, (usage.prompt_tokens, usage.completion_tokens, self.model)
@@ -452,21 +457,22 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         client.create_prompt(prompt, xform_type=xform_type, 
                              recipe_fname=recipe_fname, code_fname=code_fname)
         if prompt.prompt_compare_with_save(xform_type=xform_type, target=dest_fname):
-            print(f"\t\t {dest_fname} - Skipping transform, prompts match.")
-            return  # KLUDGE - mid function abort
+            if os.path.exists(dest_fname):
+                print(f"\t\t {dest_fname} - Skipping transform, prompts match & target exists.")
+                return  # KLUDGE - mid function abort
         
         # PROCESS LLM PROMPT
-        llm_mgr = LlmManager(temperature=temperature, max_tokens=max_tokens, model=model)
+        llm_mgr = LlmManager(temperature=temperature, max_tokens=max_tokens, model=model, target = dest_fname)
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
         if response is not None:
             # POST PROCESS RESPONSE
             response_yaml = client.process_response_to_yaml(response, recipe_fname=recipe_fname, target = dest_fname)
-            token_usage = f"TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
+            token_usage = f" TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
             header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
             header += client.comment_block(f"policy: {policy_fname}") + "\n"
             header += client.comment_block(f"code: {code_fname}") + "\n"
             header += client.comment_block(f"dest: {dest_fname}") + "\n"
-            print(f"{dest_fname} -> {token_usage}")
+            print(f"{token_usage}  \t {dest_fname}")
 
             # SAVE EACH KEY - to unique file
             target_base = Path(dest_fname)
@@ -502,7 +508,7 @@ def main():
             rules = yaml.safe_load(file)
             is_xform_enabled = "true" in str(rules.get(TEST_ENABLE, "true")).lower()
             if not is_xform_enabled:
-                print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is FALSE.")
+                # print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is FALSE.")
                 return # KLUDGE - mid function abort
 
     if args is not None and is_xform_enabled:
