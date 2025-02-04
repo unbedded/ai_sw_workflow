@@ -33,6 +33,7 @@ role_user: |
     - Logs exceptions using logging.exception() to capture the stack trace when an error occurs.
 
   - Debugging:
+    - Instantiate logging as 1st step in constructor
     - Use the logging module to provide debugging information and adhere to best practices.
     - Use lazy "%"" formatting for logging messages.
     - Configure logging with file output and a clear format including timestamps.
@@ -40,7 +41,7 @@ role_user: |
     - Includes thread-safe logging.
     - Demonstrates logging for key operations such as input validation, cache access, and calculation steps.
     - Avoids logging sensitive or redundant information
-    - set logger.setLevel(logging.DEBUG) by default
+    - set logger.setLevel(logging.WARNING) by default
 
   - Custom Configuration Management shall be supported by every class:
     - Class constructor has the configuration parameter (cfg_dict: Dict = {}):

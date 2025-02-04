@@ -9,7 +9,7 @@
 ############################################################################
 
 # Set default parallel jobs 
-NPROC := 1
+NPROC := 2
 XPROC := $(shell echo $$(( $(shell nproc) < $(NPROC) ? $(shell nproc) : $(NPROC) )))
 MAKEFLAGS += -j$(XPROC)
 
@@ -73,11 +73,12 @@ all: process_files rm_cfg
 process_files: $(DESTINATIONS)
 
 # Depth-first processing rules
-%$(PSEUDO_SUFFIX): %$(RECIPE_SUFFIX)
-#	@echo "Generating: $@ from $<"
-	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
+# %$(PSEUDO_SUFFIX): %$(RECIPE_SUFFIX)
+# #	@echo "Generating: $@ from $<"
+# 	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform pseudo --policy $(POLICY_PSEUDO) --code "n.a."
 
-%$(CODE_SUFFIX): %$(PSEUDO_SUFFIX) %$(RECIPE_SUFFIX)
+# %$(CODE_SUFFIX): %$(PSEUDO_SUFFIX) %$(RECIPE_SUFFIX)
+%$(CODE_SUFFIX):  %$(RECIPE_SUFFIX)
 #	@echo "Generating: $@ from $<"
 	@$(PYTHON) $(MAIN_SCRIPT) --recipe $< --dest $@  --xform code --policy $(POLICY_CODE) --code $@
 
