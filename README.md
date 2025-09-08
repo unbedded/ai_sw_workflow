@@ -1,4 +1,5 @@
 # End-to-End AI-Assisted Software Development Workflow
+Before there was CLUADE CODE - I wrote this similar tool. Leverage LLM-API to translate high level YAML requirements into function/unit-tested applicaiton
 
 ![Image Description](./mbse_v_diag.png)
 <div style="text-align: center;">
