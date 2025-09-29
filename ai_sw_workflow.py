@@ -2,18 +2,18 @@
 The software development workflow comprises eleven steps, as illustrated in the accompanying diagram. Each section of this paper provides a detailed explanation of a specific step:
 
     1. **Pseudocode Template**  
-    2. **High-Level Requirements**  
+    2. **Recipe - High-Level Requirements**  
     3. **LLM API Interface**  
-    4. **High-Level to Low-Level Requirements Translation**  
-    5. **Low-Level Requirements** - For target applications involving the *LLM challenges* above, custom intervention will be required at step 5 to manually edit the *Low-Level Requirements*.
+    4. **Pseudocode Requirements Translation**  
+    5. **PSEUDO.code Requirements** - For target applications involving the *LLM challenges* above, custom intervention will be required at step 5 to manually edit the *Low-Level Requirements*.
     6. **Coding Policy**  
-    7. **Low-Level Requirements to Code Translation**  
+    7. **Coding Translation**  
     8. **Code Listing**  
     9. **Testing Policy**  
     10. **Code to Unit Test Translation**  
 
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
+│ 2.Recipe    ┼─►#4──►│5.PSEUDO.code┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
 └─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
             ╔═ #1 ╚═══════╗       ┌─────┼───────┐       ┌─────┼───────┐          
             ║PSEUDO C TMPL║       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -28,7 +28,7 @@ import os
 import threading
 import time
 import re
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Iterable
 from datetime import datetime
 from argument_parser import ArgumentParser, XformType
 from pathlib import Path
@@ -40,7 +40,7 @@ from datetime import datetime
 ENCODING = 'utf-8'
 FLOWDIAG_PSEUDO = """
 ┌─────────────┐ ╔═══╗ ┌─────────────┐       ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼──►#4─►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
+│ 2.Recipe    ┼──►#4─►│5.PSEUDO.code┼─►#7──►│   8.Code    ┼─►#10─►│11.uTest│
 └─────────────┘ ╚═▲═╝ └─────────────┘   ▲   └─────────────┘   ▲   └────────┘
             ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
             │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -48,7 +48,7 @@ FLOWDIAG_PSEUDO = """
 """
 FLOWDIAG_CODE = """
 ┌─────────────┐       ┌─────────────┐ ╔═══╗ ┌─────────────┐       ┌────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼──►#7─►│   8.Code    ┼─►#10─►│11.uTest│
+│ 2.Recipe    ┼─►#4──►│5.PSEUDO.code┼──►#7─►│   8.Code    ┼─►#10─►│11.uTest│
 └─────────────┘   ▲   └─────────────┘ ╚═▲═╝ └─────────────┘   ▲   └────────┘
             ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
             │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -56,7 +56,7 @@ FLOWDIAG_CODE = """
 """
 FLOWDIAG_TEST = """
 ┌─────────────┐       ┌─────────────┐       ┌─────────────┐ ╔═══╗ ┌─────────┐
-│ 2.HiLvlRqmt ┼─►#4──►│ 5.LoLvlRqmt ┼─►#7──►│   8.Code    ┼─►#10─►│11.uTests│
+│ 2.Recipe    ┼─►#4──►│5.PSEUDO.code┼─►#7──►│   8.Code    ┼─►#10─►│11.uTests│
 └─────────────┘   ▲   └─────────────┘   ▲   └─────────────┘ ╚═▲═╝ └─────────┘
             ┌─#1 ─┼───────┐       ┌─────┼───────┐       ┌─────┼───────┐          
             │Pseudo Policy│       │ 6.CodePolicy│       │ 9.TestPolicy│          
@@ -131,6 +131,19 @@ class PromptManager:
         prompt += self.user_list
         return prompt
     
+    def prompt_fname(self, target: str) -> str:
+        # CREATE PROMPT FILE NAME (.md)
+        prompt_fname = Path(target).with_suffix(".md")
+        prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
+        return prompt_fname
+
+    def prompt_delete(self, target):
+        prompt_fname = self.prompt_fname( target)
+        if os.path.exists(target) :
+            os.remove(target)
+        if os.path.exists(prompt_fname):
+            os.remove(prompt_fname)
+
     def prompt_compare_with_save(self, xform_type: XformType, target: str) -> bool:
         """
         Compares the content of a file to a given string, ignoring all whitespace differences.
@@ -141,12 +154,6 @@ class PromptManager:
         :return: True if the file content matches the string ignoring whitespace; False otherwise.
         """
         try:
-
-            # CREATE PROMPT FILE NAME (.md)
-            prompt: List[Dict[str, str]] = self.get_prompt()
-            prompt_fname = Path(target).with_suffix(".md")
-            prompt_fname = str(Path(prompt_fname).parent / f"{self.PROMPT_PREFIX}{Path(prompt_fname).name}")
-
             # CREATE HEADER/TITLE
             for xform, title_text, diagram_value in self.xform_mappings:
                 if xform_type is xform or xform is None:
@@ -156,6 +163,7 @@ class PromptManager:
             prompt_text  = [f"# {title}\n\n"] + ["````\n"+ diagram + "````\n"]
 
             # APPEND PROMPT ITEMS - w/ markdown formatting
+            prompt: List[Dict[str, str]] = self.get_prompt()
             for item in prompt:
                 role = item["role"].capitalize()
                 content = "\n".join(line for line in item["content"].strip().splitlines() if line.strip())
@@ -163,6 +171,7 @@ class PromptManager:
             prompt_text = "\n".join(prompt_text)
 
             # COMPARE PROMPTS
+            prompt_fname = self.prompt_fname( target)
             is_exist = os.path.exists(target) # True if file exists
             is_match = False
             if is_exist and os.path.exists(prompt_fname):
@@ -180,17 +189,20 @@ class PromptManager:
 
         except Exception as e:
             print(f"An error occurred while comparing and saving the prompt: {e}")
-            return False
+            self.prompt_delete(target)
+            raise
+
 
 class LlmManager:
     """
     A class to manage a list of prompts for the OpenAI API.
     """
     MODEL_KEY_ENV_VARIABLE = "OPENAI_API_KEY"
-    def __init__(self, temperature=0.1, max_tokens=4000, model='gpt-4o'):
+    def __init__(self, temperature=0.1, max_tokens=4000, model='gpt-4o', target = "unnown"):
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.model = model
+        self.target = target
         api_key = os.getenv(self.MODEL_KEY_ENV_VARIABLE)
         if not api_key:
             raise EnvironmentError(
@@ -202,10 +214,13 @@ class LlmManager:
     def _show_progress(self) -> None:
         """Print a period every second to indicate progress, with a counter."""
         self.running = True
-        seconds = 0
+        self.seconds = 0
         while self.running:
-            seconds += 1
-            print(f"\r{seconds:>3} {'.' * seconds}", end="", flush=True)
+            self.seconds += 1
+            n_tabs = 5 - (self.seconds+4) // 8
+            tab = '\t'
+            print(f"\t\r{self.seconds:>3}{'.' * self.seconds} {tab * n_tabs}{self.target}", 
+                  end="", flush=True)
             time.sleep(1)
 
     def process_chat(self, prompt) -> Tuple[Optional[str], Tuple[int, int, str]]:
@@ -225,6 +240,7 @@ class LlmManager:
                 self.running = False
                 if self._progress_thread:
                     self._progress_thread.join()
+            print(f"\t\r{self.seconds:>3}", end="", flush=True)
             usage = getattr(response, 'usage', None)
             if usage:
                 return response.choices[0].message.content, (usage.prompt_tokens, usage.completion_tokens, self.model)
@@ -282,6 +298,43 @@ class LlmClient:
     def comment_block(self, comment: str) -> str:
         return f"{self.COMMENT_PREFIX} {comment} {self.COMMENT_POSTFIX}"
 
+    def add_file_references(self, prompt: PromptManager, references_str: str) -> None:
+        """
+        Processes file references from the recipe and appends them to the prompt.
+
+        Args:
+            recipe (dict): A dictionary containing the recipe with possible file references.
+        """
+        references = [
+            line.lstrip("- ").strip()
+            for line in references_str.splitlines()
+            if line.strip()
+        ]
+
+        for ref_fname in references:
+            target_base = Path(ref_fname)
+            for suffix in self.TARGET_SUFFIXS:
+                target_path = target_base.with_suffix(f".{suffix}")
+                directory_path = os.path.dirname(target_path)
+                file_name = os.path.basename(target_path)
+                cmd = (
+                    f"Use the following code as instructions to understand how to use the code: {target_path}.\n"
+                    f"The code file named {file_name} from the subdirectory {directory_path}:\n"
+                )
+                try:
+                    with open(target_path, 'r', encoding=ENCODING) as file:
+                        reference = file.read()
+                    reference = self.strip_comments_python(reference)    
+                    prompt.append_prompt(
+                        cmd + "\n```\n" + reference + "\n```\n"
+                    )
+                except FileNotFoundError:
+                    print(f"File not found: {target_path}")
+                    raise
+                except Exception as e:
+                    print(f"Error reading file {target_path}: {e}")
+                    raise
+
     def create_prompt(self, prompt: PromptManager, xform_type: XformType, 
                        recipe_fname: str, code_fname: str) -> None:
         """
@@ -309,26 +362,17 @@ class LlmClient:
                     if key == self.LITERAL:
                         prompt.append_prompt(prefix)
 
-                    # ADD RECIPE ELEMENT - direct copy over from recipe
-                    elif key in recipe:
-                        prompt.append_prompt(prefix + "\n" + recipe[key])
-
                     # ADD FILE REFERENCES - the whole file
                     elif key == self.CODE_REF and key in recipe:
-                        references_str = recipe[key]
-                        references = [line.lstrip("- ").strip() for line in references_str.splitlines() if line.strip()]
-                        for ref_fname in references:
-                            target_base = Path(ref_fname)
-                            for suffix in self.TARGET_SUFFIXS:
-                                suffix = "." + suffix
-                                target_path = target_base.with_suffix(suffix)
-                                module = str(target_path).split('/')[0]
-                                fname  = str(target_path).split('/')[1]
-                                cmd = (f"Use the following code as instructions to understand how to use the C++ code: {target_path}.\n"
-                                        f"The code code file named {fname} from the subdirectory {module} :\n")
-                                with open(target_path, 'r', encoding=ENCODING) as file:
-                                    reference = file.read()
-                                prompt.append_prompt(cmd + "\n```\n" + reference + "\n```\n")
+                        self.add_file_references(prompt, recipe[key])
+
+                    # ADD RECIPE ELEMENT - direct copy over from recipe
+                    elif key in recipe:
+                        if isinstance(recipe[key], Iterable) and not isinstance(recipe[key], (str, bytes)):
+                            content = "\n".join(recipe[key] )  
+                        else:
+                            content = recipe[key]
+                        prompt.append_prompt(prefix + "\n" + content)
 
             # INCLUDE CODE - to be tested
             if xform_type is XformType.TEST:
@@ -353,35 +397,25 @@ class LlmClient:
             )
             raise
 
-# for rule in rules:
-#     if type(rule) is not str :
-    #    print(f"{rule} type {type(rule)}")
-        # msg = f"Invalid type for {self.PROMPT_ELEMENTS} - key: {key} in {policy_fname}."
-        # print(msg)
-        # raise ValueError(msg)
-    # if rule not in [self.LITTERAL, self.CODE_REF, self.PROMPT_ELEMENTS]:
-    #     msg = f"Invalid key in {recipe_fname}: {rule}."
-    #     print(msg)
-    #     raise ValueError(msg)
-# for key, prefix in prompt_elements:
-
-
-    def process_response(self, response: str, recipe_fname: str) -> str:
+    def process_response_to_yaml(self, response: str, recipe_fname: str, target: str) -> str:
         """
         Post-process the response
         Args:
-            response (str): The response to be processed.
-            xform_type (XformType): The type of transformation to be applied.
-            recipe_fname (str): The name of the source file.
+            response (str): The response to be processed. It should be a non-empty string.
+            xform_type (XformType): The type of transformation to be applied. This determines how the response will be processed.
+            recipe_fname (str): The name of the source file from which the response was generated.
         Raises:
-            Exception: If an error occurs during file processing - or if response is empty.
-        """        
+            Exception: If an error occurs during file processing or if the response is empty.
+        Returns:
+            str: The processed response after applying the specified transformation.
+        """
         try:
             # EXTRACT YAML from response
             response = re.sub(r'^.*?```yaml\n', '', response, flags=re.DOTALL)
-            response = re.sub(r'```.*$',        '', response, flags=re.DOTALL)
-
-            # ADD LITERAL values (which are prefixed with underscore)
+            #find the last occurrence of the triple single quotes (''') in a string and remove everything after it,
+            # you can use a regular expression with a negative lookahead to ensure it matches the last occurrence.
+            response = re.sub(r"```(?!.*```).*$", "", response, flags=re.DOTALL)
+            # ADD PROMPT ELEMENTS
             literals = "\n"
             prompt_elements = self.POSTFIX_ELEMENTS
             with open(recipe_fname, "r", encoding=ENCODING) as file:
@@ -389,12 +423,15 @@ class LlmClient:
                 if prompt_elements is not None:
                     for key, _ in prompt_elements:
                         if key in recipe:
-                            content = recipe[key]
-                            if isinstance(content, bool):
-                                literals += f"\n{key}: {content}"
+                            if isinstance(recipe[key], Iterable) and not isinstance(recipe[key], (str, bytes)):
+                                content = "\n".join(recipe[key])
                             else:
-                                literals += f"\n{key}: |\n"
-                                literals += "\n".join([f"  {line}" for line in content.splitlines()])
+                                content = recipe[key]
+                            if isinstance(content, bool):
+                                literals += f"\n  {key}: {content}"
+                            else:
+                                literals += f"\n  {key}: |\n"
+                                literals += "\n".join([f"    {line}" for line in content.splitlines()])
                                 literals += "\n"
             return response + literals
 
@@ -407,9 +444,9 @@ class LlmClient:
 
 def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname: str, 
                xform_type: XformType, temperature: float, max_tokens: int, model: str) -> None:
+    prompt = PromptManager()
     try:
         # CREATE LLM PROMPT
-        prompt = PromptManager()
         client = LlmClient(policy_fname=policy_fname, code_fname=code_fname)
         filename_stem = Path(dest_fname).stem
         prompt.add_variable("DATE", datetime.now().strftime("%Y-%m-%d"))
@@ -420,36 +457,37 @@ def main_xform(policy_fname: str, recipe_fname: str, code_fname: str, dest_fname
         client.create_prompt(prompt, xform_type=xform_type, 
                              recipe_fname=recipe_fname, code_fname=code_fname)
         if prompt.prompt_compare_with_save(xform_type=xform_type, target=dest_fname):
-            print(f"\t\t {dest_fname} - Skipping transform, prompts match.")
-            return  # KLUDGE - mid function abort
+            if os.path.exists(dest_fname):
+                print(f"\t\t {dest_fname} - Skipping transform, prompts match & target exists.")
+                return  # KLUDGE - mid function abort
         
         # PROCESS LLM PROMPT
-        llm_mgr = LlmManager(temperature=temperature, max_tokens=max_tokens, model=model)
+        llm_mgr = LlmManager(temperature=temperature, max_tokens=max_tokens, model=model, target = dest_fname)
         response, tokens = llm_mgr.process_chat(prompt.get_prompt())
+        if response is not None:
+            # POST PROCESS RESPONSE
+            response_yaml = client.process_response_to_yaml(response, recipe_fname=recipe_fname, target = dest_fname)
+            token_usage = f" TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
+            header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
+            header += client.comment_block(f"policy: {policy_fname}") + "\n"
+            header += client.comment_block(f"code: {code_fname}") + "\n"
+            header += client.comment_block(f"dest: {dest_fname}") + "\n"
+            print(f"{token_usage}  \t {dest_fname}")
 
-        # POST PROCESS RESPONSE
-        response_processed = client.process_response(response, recipe_fname=recipe_fname)
-        token_usage = f"TOKENS: {tokens[0] + tokens[1]} (of:{max_tokens}) = {tokens[0]} + {tokens[1]}(prompt+return)"
-        header = client.comment_block( f"{token_usage} -- MODEL: {tokens[2]}") + "\n"
-        header += client.comment_block(f"policy: {policy_fname}") + "\n"
-        header += client.comment_block(f"code: {code_fname}") + "\n"
-        header += client.comment_block(f"dest: {dest_fname}") + "\n"
-        print(f"{dest_fname} -> {token_usage}")
-
-        if xform_type is XformType.PSEUDO:
-            with open(dest_fname, 'w', encoding=ENCODING) as file:
-                file.write(header + response_processed)
-        else:
+            # SAVE EACH KEY - to unique file
             target_base = Path(dest_fname)
-            response_yaml = yaml.safe_load(response_processed)
-            for key, target in response_yaml.items():
+            content_yaml = yaml.safe_load(response_yaml)
+            for key, content in content_yaml.items():
                 target_path = target_base.with_suffix("." + key)
                 with open(target_path, 'w', encoding=ENCODING) as file:
-                    file.write(header + target)
+                    file.write(header + content)
+        else:
+            prompt.prompt_delete(dest_fname)
 
     except Exception as e:
         e_msg = f"An error occurred while processing files:\n  Input files: {policy_fname}\n  Output file: {code_fname}\n  Error details: {e}"
         print(f"ERROR THROWN {e_msg}")
+        prompt.prompt_delete(dest_fname)
         raise
 
 
@@ -470,7 +508,7 @@ def main():
             rules = yaml.safe_load(file)
             is_xform_enabled = "true" in str(rules.get(TEST_ENABLE, "true")).lower()
             if not is_xform_enabled:
-                print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is FALSE.")
+                # print(f"Skipping TEST generation for {args.recipe} as {TEST_ENABLE} is FALSE.")
                 return # KLUDGE - mid function abort
 
     if args is not None and is_xform_enabled:
@@ -485,17 +523,8 @@ if __name__ == "__main__":
 ###########################################################################
 # TODO - Policy cleanup - less verbose - more specific
 # TODO - fix fibinacci test - infinite loop  [ RUN      ] FibonacciTest.ThrowsInvalidArgumentForNegativeIndex
-# - README - how to setup 
 
 ### MAKEFILE
-# TODO - make gtest as its own rule
 # TODO - Trigger builld if RECIPE changes - %$(TEST_SUFFIX): %$(CODE_SUFFIX) %$(CODE_SUFFIX)
-# TODO _ how to run tests w/ "make test"
-
-
-#
-
-#### TESTING
-
-###############  DONE
-
+# TODO - if GPT prompt fails (i.e. timeout) - make is broken until you manually fix it delete stale target file..  
+#          just delete prompt?             

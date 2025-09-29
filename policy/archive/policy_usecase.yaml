@@ -1,5 +1,0 @@
-role_system: |
-  An expert Systems Engineer specializing in software requirements and Use Case development.
-
-role_user: |
-  Generate a Use Case that includes a goal, precondition, postcondition, and detailed main, alternate, and exception flows.

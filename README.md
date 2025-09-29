@@ -1,4 +1,5 @@
 # End-to-End AI-Assisted Software Development Workflow
+Before there was CLUADE CODE - I wrote this similar tool. Leverage LLM-API to translate high level YAML requirements into function/unit-tested applicaiton
 
 ![Image Description](./mbse_v_diag.png)
 <div style="text-align: center;">
@@ -7,10 +8,19 @@
 <p>Date: December 15, 2024</p>
 </div>
 
-
 # Abstract
-Current AI-assisted coding tools primarily focus on isolated tasks within the software development lifecycle, such as writing, testing, and reviewing code. This fragmented approach limits their effectiveness and fails to provide a comprehensive solution that integrates all stages of development.
-This paper introduces an end-to-end AI-assisted software development workflow that automates the entire process—from high-level requirements to detailed design, code generation, and automated unit testing. The proposed workflow ensures well-documented artifacts at every stage while allowing for user intervention when necessary. This approach addresses the limitations of current AI coding assistants, which often operate only at isolated stages of software development.
+Current AI-assisted coding tools focus on isolated tasks within the software development lifecycle, such as code writing, testing, and review. This fragmented approach limits their effectiveness and fails to provide a cohesive solution that integrates all stages of development.
+
+This paper introduces an end-to-end AI-assisted software development workflow that spans the entire lifecycle—from high-level requirements through detailed design, code generation, and automated unit testing. The workflow emphasizes well-documented artifacts at each stage while supporting user intervention when needed. By addressing the limitations of existing AI tools, this approach enables a holistic and efficient development process. Key features of this workflow are:
+
+ - Switching from an iterative refinement to a template based prompt documents high level requirements in a concise separation of concerns (objective / architecture / impl details / test)
+ - A Coding-Policy is appended to your prompt enables developers to focus on your requirements and not the impl details
+ - Concurrent code and test generation provides regulation from the hallucinations and randomness of Generative AI
+ - A Testing-Policy appended to your test specification enables higher quality tests while developer focus on validation
+ - Saving the prompt as a development source artifact - allows for reuse and derivative future works.
+ - Project/Department policies become not just guidelines in the cloud but part of the development environment code generation.
+
+Central to this workflow is the adoption of Test-Driven Development (TDD). Unlike conventional AI systems marketed for rapid prototyping, this approach incorporates benchmark policies and unit tests to deliver production-quality code. High-level requirements are validated against unit tests, which in turn verify the target software. Generative AI accelerates both unit test creation and code implementation, ensuring consistency and reliability. Furthermore, the workflow’s capacity for reflection and self-refinement promises significant potential for iterative improvement in future framework improvements.
 
 The diagram above leverages the Model-Based Systems Engineering (MBSE) V-Diagram and shows the necessary artifacts to support the full-cycle workflow proposed by this paper.
 
@@ -21,16 +31,41 @@ The template command creates a recipe template fibonacci/fibonacci_recipe.yaml
 mkdir aiproject
 cd aiproject
 git clone git@github.com:unbedded/ai_sw_workflow.git
-cp ai_sw_workflow/Makefile ../
+cp ai_sw_workflow/Makefile ./
 make template new_name=fibonacci
 ```
+Your directory structure will now look like this. The template command will copy the template directory to your cwd and rename it as 'fibonacci`
+```
+├── Makefile
+│── fibonacci
+│   ├── __init__.py
+│   └── fibonacci_recipe.yaml
+│
+├── ai_sw_workflow
+│   ├── ai_sw_workflow.py
+│   ├── argument_parser.py
+│   ├── Makefile
+│   ├── policy
+│   │   ├── policy_c++20.yaml
+│   │   ├── policy_gtest.yaml
+│   │   ├── policy_pseudo.yaml
+│   │   ├── policy_pytest.yaml
+│   │   └── policy_python3.8.yaml
+│   ├── README.md
+│   ├── requirements.txt
+│   └── template
+│       ├── __init__.py
+│       └── template_recipe.yaml
+
+```
+
 ### OPENAI_API_KEY
-Create an openAI API account and store the API key in an enviroment variable. 
+Create an OpenAI API account and store the API key in an environment variable. 
 ```
 export OPENAI_API_KEY="sk-proj-nImqa8o3Lp-7........PSVSygA"
 ```
 ### MODEL
-Makefile has several models it will work with. The code quality of gpt-4o is far suppeior to 3.5-turbo
+Makefile has several models it will work with. The code quality of gpt-4o is far superior to 3.5-turbo
 ```
 MODEL = 'gpt-4o'
 # MODEL = 'gpt-4o-mini'
@@ -39,7 +74,7 @@ MODEL = 'gpt-4o'
 ```
 
 ### Create a Recipe
-Paste the following into  ./fibinacci/fibinacci_recipe.yaml
+Paste the following into ./fibonacci/fibonacci_recipe.yaml
 ```
 target_name: Fibonacci
 
@@ -50,18 +85,18 @@ requirements: |
   - Name variables based on pirate slang
 
 architecture: |
-  - Encapsulate functionality into class named [TARGET_NAME].
-  - thread-safe is not required - single-threaded operation is sufficient.
+  - Encapsulate functionality into a class named [TARGET_NAME].
+  - Thread-safe is not required - single-threaded operation is sufficient.
   - Accept an optional maximum index (max_index) during initialization to limit the range of Fibonacci numbers.
   - Handle edge cases and invalid operations predictably.
   - Use caching to store previously calculated Fibonacci numbers for performance optimization.
 
 # code_requirements: |
-#   - <list implmentation requirements here>
+#   - <list implementation requirements here>
 
 test_enable: True
 test_requirements: |
-  - test edge cases and invalid operations
+  - Test edge cases and invalid operations
   - Include import logging
   
 # code_references: |
@@ -70,14 +105,14 @@ test_requirements: |
 
 ## AutoGenerating Python Code
 
-### Prerequistes
+### Prerequisites
 Edit Makefile to select language
 ```
 # Conditional variable to switch between language policies
 POLICY_MODE = python3.8
 ```
 
-The project will work with python 3.8 or greater. your virtual enviroment must install the ./ai_sw_workflow/requirements.txt which includes module dependencies:
+The project will work with Python 3.8 or greater. Your virtual environment must install the ./ai_sw_workflow/requirements.txt, which includes module dependencies:
 ```
 openai
 pytest
@@ -85,7 +120,7 @@ pyyaml
 coverage
 ```
 ### Activate and Make
-Run the makefile to autogenerate code and build test. The makefile uses the following policies for autogeneration:
+Run the Makefile to autogenerate code and build tests. The Makefile uses the following policies for autogeneration:
 - CODE POLICY: `policy=ai_sw_workflow/policy/policy_python3.8.yaml`:
 - TESTING POLICY: `policy=ai_sw_workflow/policy/policy_pytest.yaml`:
 ```
@@ -93,15 +128,14 @@ source .venv/bin/activate
 make
 ```
 
-
 ## AutoGenerating C++ Code
-### Prerequistes
+### Prerequisites
 Edit Makefile to select language
 ```
 # Conditional variable to switch between language policies
 POLICY_MODE = c++20
 ```
-Verify your complier supports c++20  (202002L → C++20)
+Verify your compiler supports C++20 (202002L → C++20)
 ```
 preact@oryx:~/sw/example_ai_workflow$ g++ --version
 g++ (Ubuntu 9.4.0-1ubuntu1~20.20.02L) 9.4.0
@@ -116,7 +150,7 @@ sudo apt update
 sudo apt install libgtest-dev
 ```
 
-Run the makefile to autogenerate code and build test. The makefile uses the following policies for autogeneration:
+Run the Makefile to autogenerate code and build tests. The Makefile uses the following policies for autogeneration:
 - CODE POLICY: `policy=ai_sw_workflow/policy/policy_c+20.yaml`:
 - TESTING POLICY: `policy=ai_sw_workflow/policy/policy_gtest.yaml`:
 ```
@@ -125,16 +159,16 @@ make
 ```
 
 # Overview
-AI solutions must address the *Complexity vs Efficacy* trade-off. The more complex a task the more guessing AI performs, unless you are leveraging a well know pattern. Succesful AI solutions for complex tasks must breakdown problem in to hierarchical simpler tasks handled by multiple agents. Decomposing problems into structured stages is a concept embraced by agentic orchestration tools like CrewAI and LangChain.
+AI solutions must address the *Complexity vs Efficacy* trade-off. The more complex a task, the more guessing AI performs unless you are leveraging a well-known pattern. Successful AI solutions for complex tasks must break down problems into hierarchical, simpler tasks handled by multiple agents. Decomposing problems into structured stages is a concept embraced by agentic orchestration tools like CrewAI and LangChain.
 
-**Pseudocode Intermediate** - While the primary focus of this paper is on software development, the same workflow can be applied to a variety of other domains. The workflow leverages AI large language models (LLMs) to transform high-level task descriptions into a detailed pseudo-language intermediate description. Using AI to transforming your problem into a LLM friendly pseudo language is a powerful tool. This intermediate step allows developers to manually review pipeline artifacts and exercise control over the process at an intermediate pseudo-language level what leveraging AI to peform the heavy lifting to bootstrap the pseudo langage detailed descriptions.
+**Pseudocode Intermediate** - While the primary focus of this paper is on software development, the same workflow can be applied to a variety of other domains. The workflow leverages AI large language models (LLMs) to transform high-level task descriptions into a detailed pseudo-language intermediate description. Using AI to transform your problem into an LLM-friendly pseudo-language is a powerful tool. This intermediate step allows developers to manually review pipeline artifacts and exercise control over the process at an intermediate pseudo-language level while leveraging AI to perform the heavy lifting to bootstrap the pseudo-language detailed descriptions.
 
-**Large Language Models Challanges** (LLMs) are pattern inference machines trained on vast datasets. While they can generate plausible solutions, their effectiveness is influenced by how clearly requirements are presented, LLM model and complexity of problem. These challenges emphasize the need for well-structured prompts, version control, and diligent review to maximize the benefits of AI-assisted coding.Common challenges include:
+**Large Language Models Challenges** (LLMs) are pattern inference machines trained on vast datasets. While they can generate plausible solutions, their effectiveness is influenced by how clearly requirements are presented, the LLM model, and the complexity of the problem. These challenges emphasize the need for well-structured prompts, version control, and diligent review to maximize the benefits of AI-assisted coding. Common challenges include:
 
 - **Non-Typical Library Usage**: Users might want to use a library in a unique way, which does not match the pattern the LLM was trained with. LLMs will require specific guidance to accommodate.
 - **Version Mismatch**: LLMs may use the wrong version of a library or language, which can lead to compatibility issues or broken code.
 - **Unique Applications**: LLMs are great at guessing, but if your solution is unique, it requires the developer to provide extensive details.
-- **Version of LLM**: will greatly affect output. Models have improved signifactly in the past year. GPT-4o and GPT-3.5.turbo are used in this paper and the last chapter compairs thier relative performance. Good news is both satisified models satisifed the example requirements but the GPT-4o was far superior. 
+- **Version of LLM**: This will greatly affect output. Models have improved significantly in the past year. GPT-4o and GPT-3.5-turbo are used in this paper, and the last chapter compares their relative performance. The good news is both models satisfied the example requirements, but GPT-4o was far superior.
 
 While this workflow is demonstrated in a Jupyter Notebook with each step implemented manually, the process can be automated by defining the rules in a Makefile. The software development workflow comprises eleven steps, as illustrated in the accompanying diagram. Each section of this paper provides a detailed explanation of a specific step:
 
@@ -160,13 +194,13 @@ While this workflow is demonstrated in a Jupyter Notebook with each step impleme
 ```
 
 ### Notebook Prerequisites
-The code makes use of openai API and expects an enviroment variable named **OPENAI_API_KEY** that contains your OpenAI API key. The included Python code is compatable with Python 3.8 or greater and requires the following modules to be included in your virtual enviroment:
+The code makes use of the OpenAI API and expects an environment variable named **OPENAI_API_KEY** that contains your OpenAI API key. The included Python code is compatible with Python 3.8 or greater and requires the following modules to be included in your virtual environment:
 ```
  - pip install openai
  - pip install pyyaml            
 ```
 
- Current AI coding practices often rely on iterative prompting, where developers engage in repetitive back-and-forth interactions to craft the desired output. This approach can be inefficient, leading to frustration and an increased risk of overlooking critical details. An alternative solution involves the use of templates that encapsulate requirements, best practices, and goals within a single, monolithic prompt. The template goal is:
+Current AI coding practices often rely on iterative prompting, where developers engage in repetitive back-and-forth interactions to craft the desired output. This approach can be inefficient, leading to frustration and an increased risk of overlooking critical details. An alternative solution involves the use of templates that encapsulate requirements, best practices, and goals within a single, monolithic prompt. The template goal is:
 
 - **Higher Efficacy**: Reduces the friction in interactions, minimizing the need for iterative refinement and redundant instructions.
 - **Leverage Familiar Paradigms**: By framing requirements in popular pseudocode formats, templates align closely with LLM training data, increasing the likelihood of accurate outputs.
@@ -186,4 +220,3 @@ The architecture, error handling, and implementation requirements allow fine-tun
 - **architecture**: Isolates the high-level structure out of the functional requirements section.
 - **error_handling**: Allows fine-tuning of error handling—could include logging or debug print requirements.
 - **impl_requirements**: Helpful for refining the implementation or workarounds for hallucinations.
-
